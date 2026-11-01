@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Reusable fault handler: 502 Bad Gateway (upstream service error) -->
+<sequence xmlns="http://ws.apache.org/ns/synapse" name="fault-response-502">
+  <log level="custom">
+    <property name="fault" value="upstream_error"/>
+    <property name="error" expression="get-property('ERROR_MESSAGE')"/>
+  </log>
+  <payloadFactory media-type="json">
+    <format>{"status":"error","code":502,"message":"$1","correlation_id":"$2"}</format>
+    <args>
+      <arg expression="get-property('ERROR_MESSAGE')"/>
+      <arg expression="get-property('correlation_id')"/>
+    </args>
+  </payloadFactory>
+  <property name="HTTP_SC" value="502" scope="axis2"/>
+  <respond/>
+</sequence>

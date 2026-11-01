@@ -1,91 +1,263 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SEQ-01-reserva-cita: Reserva de cita con autorización diferida
-  Pattern: saga
-  Services: agenda + pacientes + profesionales + pagos(auth) + notificaciones
+  SEQ-01-reserva-cita: Reserva de cita con autorización de pago diferida
+  Pattern: saga (with compensation)
+  Services: pacientes(validate) + profesionales(validate) + agenda(create) + pagos(auth)
   Saga state: persisted in wso2-mi MySQL saga_state table.
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract JWT + correlation_id
+    2. Persist saga_state = STARTED
+    3. Validate paciente exists (GET pacientes/{paciente_id})
+    4. Validate profesional exists (GET profesionales/{profesional_id})
+    5. Create cita (POST agenda/citas) → store cita_id
+    6. If pago_autorizado=true, create auth-only transaccion (POST pagos/transacciones)
+    7. Persist saga_state = COMPLETED
+    8. Respond with cita_id + saga_id
+
+  Compensation (fault):
+    - If step 6 completed: POST pagos/transacciones/{transaccion_id}/reembolsar
+    - If step 5 completed: DELETE agenda/citas/{cita_id}
+    - Persist saga_state = COMPENSATED
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-01-reserva-cita"
      context="/seq-01-reserva-cita"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-01-reserva-cita"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-01-reserva-cita" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
-    </dblookup>
+    </dbupdate>
 
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-01-reserva-cita"/>
-      <property name="pattern" value="saga"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
+    <!-- 3. Extract request fields -->
+    <property name="paciente_id" expression="json-eval($.paciente_id)"/>
+    <property name="profesional_id" expression="json-eval($.profesional_id)"/>
+    <property name="tipo_consulta" expression="json-eval($.tipo_consulta)"/>
+    <property name="fecha_hora" expression="json-eval($.fecha_hora)"/>
+    <property name="duracion_min" expression="json-eval($.duracion_min)"/>
+    <property name="pago_autorizado" expression="json-eval($.pago_autorizado)"/>
 
-    <!-- 4. Compose response payload -->
+    <!-- 4. Validate paciente exists -->
+    <property name="To" expression="fn:concat('http://servicio-pacientes.core.svc.cluster.local:3002/api/v1/pacientes/', get-property('paciente_id'))" scope="default"/>
+    <property name="HTTP_METHOD" value="GET" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="GET">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="200">
+      <then>
+        <log level="custom"><property name="step" value="paciente_validated"/></log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Paciente no encontrado"/>
+        <sequence key="fault-response-404"/>
+      </else>
+    </filter>
+
+    <!-- 5. Validate profesional exists -->
+    <property name="To" expression="fn:concat('http://servicio-profesionales.core.svc.cluster.local:3003/api/v1/profesionales/', get-property('profesional_id'))" scope="default"/>
+    <property name="HTTP_METHOD" value="GET" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="GET">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="200">
+      <then>
+        <log level="custom"><property name="step" value="profesional_validated"/></log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Profesional no encontrado"/>
+        <sequence key="fault-response-404"/>
+      </else>
+    </filter>
+
+    <!-- 6. Create cita in agenda service -->
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-01-reserva-cita","status":"completed","services":"agenda + pacientes + profesionales + pagos(auth) + notificaciones"}</format>
+      <format>{"paciente_id":"$1","profesional_id":"$2","tipo_consulta":"$3","fecha_hora":"$4","duracion_min":$5}</format>
       <args>
-        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('paciente_id')"/>
+        <arg expression="get-property('profesional_id')"/>
+        <arg expression="get-property('tipo_consulta')"/>
+        <arg expression="get-property('fecha_hora')"/>
+        <arg expression="get-property('duracion_min')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda/citas" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="cita_id" expression="json-eval($.cita_id)"/>
+        <property name="step_cita_created" value="true"/>
+        <log level="custom">
+          <property name="step" value="cita_created"/>
+          <property name="cita_id" expression="get-property('cita_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear cita"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
 
-    <!-- 5. Update saga_state to COMPLETED -->
+    <!-- 7. If pago_autorizado, create auth-only transaccion -->
+    <filter source="get-property('pago_autorizado')" regex="true">
+      <then>
+        <payloadFactory media-type="json">
+          <format>{"cita_id":"$1","paciente_id":"$2","monto":0,"moneda":"MXN","metodo":"stripe","stripe_intent":"auth_only"}</format>
+          <args>
+            <arg expression="get-property('cita_id')"/>
+            <arg expression="get-property('paciente_id')"/>
+          </args>
+        </payloadFactory>
+        <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+        <call>
+          <endpoint>
+            <http uri-template="http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos/transacciones" method="POST">
+              <timeout><duration>15000</duration><responseAction>fault</responseAction></timeout>
+            </http>
+          </endpoint>
+        </call>
+        <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+          <then>
+            <property name="transaccion_id" expression="json-eval($.transaccion_id)"/>
+            <property name="step_pago_created" value="true"/>
+            <log level="custom">
+              <property name="step" value="pago_auth_created"/>
+              <property name="transaccion_id" expression="get-property('transaccion_id')"/>
+            </log>
+          </then>
+          <else>
+            <!-- Pago failed: compensate by deleting the cita -->
+            <property name="ERROR_MESSAGE" value="Error al autorizar pago"/>
+            <sequence key="fault-response-502"/>
+          </else>
+        </filter>
+      </then>
+    </filter>
+
+    <!-- 8. Persist saga_state = COMPLETED -->
     <dbupdate>
       <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
+        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=?, payload=? WHERE saga_id=?</sql>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
+        <parameter expression="json-eval($.cita_id)" type="VARCHAR"/>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- 9. Compose and return response -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","status":"completed","cita_id":"$2","pago_autorizado":$3,"correlation_id":"$4"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('pago_autorizado')"/>
+        <arg expression="get-property('correlation_id')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="201" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-01-reserva-cita"/>
       <property name="status" value="COMPENSATING"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
     </log>
+
+    <!-- Compensate step 6: reembolsar pago if created -->
+    <filter source="get-property('step_pago_created')" regex="true">
+      <then>
+        <payloadFactory media-type="json">
+          <format>{"monto":0,"motivo":"compensacion_saga_SEQ-01"}</format>
+        </payloadFactory>
+        <property name="To" expression="fn:concat('http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos/transacciones/', get-property('transaccion_id'), '/reembolsar')" scope="default"/>
+        <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+        <call>
+          <endpoint>
+            <http uri-template="{ctx:To}" method="POST">
+              <timeout><duration>10000</duration><responseAction>onError</responseAction></timeout>
+            </http>
+          </endpoint>
+        </call>
+        <log level="custom"><property name="compensated" value="pago_reembolsado"/></log>
+      </then>
+    </filter>
+
+    <!-- Compensate step 5: delete cita if created -->
+    <filter source="get-property('step_cita_created')" regex="true">
+      <then>
+        <property name="To" expression="fn:concat('http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda/citas/', get-property('cita_id'))" scope="default"/>
+        <property name="HTTP_METHOD" value="DELETE" scope="axis2"/>
+        <call>
+          <endpoint>
+            <http uri-template="{ctx:To}" method="DELETE">
+              <timeout><duration>5000</duration><responseAction>onError</responseAction></timeout>
+            </http>
+          </endpoint>
+        </call>
+        <log level="custom"><property name="compensated" value="cita_eliminada"/></log>
+      </then>
+    </filter>
+
+    <!-- Persist saga_state = COMPENSATED -->
     <dbupdate>
       <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
+        <sql>UPDATE saga_state SET status='COMPENSATED', completed_at=?, error=? WHERE saga_id=?</sql>
+        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
+        <parameter expression="get-property('ERROR_MESSAGE')" type="VARCHAR"/>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
+
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-01-reserva-cita","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"compensated","error":"$2","correlation_id":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
-        <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('ERROR_MESSAGE')"/>
+        <arg expression="get-property('correlation_id')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>

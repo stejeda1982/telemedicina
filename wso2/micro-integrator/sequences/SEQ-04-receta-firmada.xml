@@ -1,91 +1,169 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SEQ-04-receta-firmada: Emisión de receta electrónica firmada
-  Pattern: saga
-  Services: recetas + profesionales + expediente + e.firma + notificaciones
-  Saga state: persisted in wso2-mi MySQL saga_state table.
+  SEQ-04-receta-firmada: Emisión y firma digital de receta médica
+  Pattern: sequential
+  Services: recetas(create + firmar + enviar)
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract receta data (paciente, profesional, items, es_controlada)
+    2. Create receta (POST recetas) → get receta_id
+    3. Sign digitally (POST recetas/{id}/firmar) with certificado
+    4. Send to paciente (POST recetas/{id}/enviar) via email/sms/whatsapp
+    5. Respond with receta_id + firma_hash + envio status
+
+  Compensation: if firma fails, receta is voided by the service
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-04-receta-firmada"
      context="/seq-04-receta-firmada"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-04-receta-firmada"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-04-receta-firmada" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
-      </statement>
-    </dblookup>
-
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-04-receta-firmada"/>
-      <property name="pattern" value="saga"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
-
-    <!-- 4. Compose response payload -->
-    <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-04-receta-firmada","status":"completed","services":"recetas + profesionales + expediente + e.firma + notificaciones"}</format>
-      <args>
-        <arg expression="get-property('saga_id')"/>
-      </args>
-    </payloadFactory>
-
-    <!-- 5. Update saga_state to COMPLETED -->
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
-        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- Extract request fields -->
+    <property name="paciente_id" expression="json-eval($.paciente_id)"/>
+    <property name="profesional_id" expression="json-eval($.profesional_id)"/>
+    <property name="cita_id" expression="json-eval($.cita_id)"/>
+    <property name="es_controlada" expression="json-eval($.es_controlada)"/>
+    <property name="items" expression="json-eval($.items)"/>
+    <property name="certificado" expression="json-eval($.certificado)"/>
+    <property name="canal_envio" expression="json-eval($.canal_envio)"/>
+    <property name="destino_envio" expression="json-eval($.destino_envio)"/>
+
+    <!-- 3. Create receta -->
+    <payloadFactory media-type="json">
+      <format>{"paciente_id":"$1","profesional_id":"$2","cita_id":"$3","es_controlada":$4,"items":$5}</format>
+      <args>
+        <arg expression="get-property('paciente_id')"/>
+        <arg expression="get-property('profesional_id')"/>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('es_controlada')"/>
+        <arg expression="get-property('items')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-recetas.core.svc.cluster.local:3007/api/v1/recetas" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="receta_id" expression="json-eval($.receta_id)"/>
+        <property name="step_receta_created" value="true"/>
+        <log level="custom">
+          <property name="step" value="receta_created"/>
+          <property name="receta_id" expression="get-property('receta_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear receta"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 4. Sign receta digitally -->
+    <payloadFactory media-type="json">
+      <format>{"certificado":"$1","algoritmo":"sha256"}</format>
+      <args><arg expression="get-property('certificado')"/></args>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-recetas.core.svc.cluster.local:3007/api/v1/recetas/', get-property('receta_id'), '/firmar')" scope="default"/>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="POST">
+          <timeout><duration>15000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="firma_hash" expression="json-eval($.firma_hash)"/>
+        <property name="step_receta_firmada" value="true"/>
+        <log level="custom">
+          <property name="step" value="receta_firmada"/>
+          <property name="firma_hash" expression="get-property('firma_hash')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al firmar receta digitalmente"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 5. Send receta to paciente -->
+    <payloadFactory media-type="json">
+      <format>{"canal":"$1","destino":"$2"}</format>
+      <args>
+        <arg expression="get-property('canal_envio')"/>
+        <arg expression="get-property('destino_envio')"/>
+      </args>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-recetas.core.svc.cluster.local:3007/api/v1/recetas/', get-property('receta_id'), '/enviar')" scope="default"/>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="POST">
+          <timeout><duration>10000</duration><responseAction>onError</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+
+    <!-- 6. Respond -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","status":"completed","receta_id":"$2","firma_hash":"$3","enviado":true}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('receta_id')"/>
+        <arg expression="get-property('firma_hash')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="201" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-04-receta-firmada"/>
-      <property name="status" value="COMPENSATING"/>
+      <property name="status" value="FAULT"/>
     </log>
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
-      </statement>
-    </dbupdate>
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-04-receta-firmada","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"error","receta_id":"$2","error":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
-        <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('receta_id')"/>
+        <arg expression="get-property('ERROR_MESSAGE')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>

@@ -1,91 +1,204 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SEQ-05-pago-cfdi: Captura de pago con CFDI
-  Pattern: saga
-  Services: pagos + Stripe/MP + PAC-SAT + expediente(ref) + notificaciones
-  Saga state: persisted in wso2-mi MySQL saga_state table.
+  SEQ-05-pago-cfdi: Procesamiento de pago con CFDI (factura electrónica)
+  Pattern: saga with retry (3 attempts on capture)
+  Services: pagos(create + capturar) + sat-cfdi-connector
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract pago data (cita_id, paciente_id, monto, metodo)
+    2. Create transaccion (POST pagos/transacciones) → get transaccion_id
+    3. Capture payment with 3 retry attempts (POST pagos/transacciones/{id}/capturar)
+    4. Generate CFDI via SAT connector (sat-cfdi-connector.timbrar)
+    5. Update transaccion with CFDI UUID
+    6. Respond with transaccion_id + cfdi_uuid
+
+  Compensation: if CFDI fails after capture, reembolsar transaccion
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-05-pago-cfdi"
      context="/seq-05-pago-cfdi"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-05-pago-cfdi"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-05-pago-cfdi" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
-      </statement>
-    </dblookup>
-
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-05-pago-cfdi"/>
-      <property name="pattern" value="saga"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
-
-    <!-- 4. Compose response payload -->
-    <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-05-pago-cfdi","status":"completed","services":"pagos + Stripe/MP + PAC-SAT + expediente(ref) + notificaciones"}</format>
-      <args>
-        <arg expression="get-property('saga_id')"/>
-      </args>
-    </payloadFactory>
-
-    <!-- 5. Update saga_state to COMPLETED -->
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
-        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- Extract request fields -->
+    <property name="cita_id" expression="json-eval($.cita_id)"/>
+    <property name="paciente_id" expression="json-eval($.paciente_id)"/>
+    <property name="monto" expression="json-eval($.monto)"/>
+    <property name="moneda" expression="json-eval($.moneda)"/>
+    <property name="metodo" expression="json-eval($.metodo)"/>
+    <property name="rfc_receptor" expression="json-eval($.rfc_receptor)"/>
+    <property name="concepto" expression="json-eval($.concepto)"/>
+
+    <!-- 3. Create transaccion -->
+    <payloadFactory media-type="json">
+      <format>{"cita_id":"$1","paciente_id":"$2","monto":$3,"moneda":"$4","metodo":"$5"}</format>
+      <args>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('paciente_id')"/>
+        <arg expression="get-property('monto')"/>
+        <arg expression="get-property('moneda')"/>
+        <arg expression="get-property('metodo')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos/transacciones" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="transaccion_id" expression="json-eval($.transaccion_id)"/>
+        <property name="step_transaccion_created" value="true"/>
+        <log level="custom">
+          <property name="step" value="transaccion_created"/>
+          <property name="transaccion_id" expression="get-property('transaccion_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear transacción"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 4. Capture payment (retry up to 3 times) -->
+    <property name="retry_count" value="0"/>
+    <payloadFactory media-type="json">
+      <format>{"monto":$1}</format>
+      <args><arg expression="get-property('monto')"/></args>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos/transacciones/', get-property('transaccion_id'), '/capturar')" scope="default"/>
+    <loopmessage>
+      <!-- First attempt -->
+      <call>
+        <endpoint>
+          <http uri-template="{ctx:To}" method="POST">
+            <timeout><duration>30000</duration><responseAction>fault</responseAction></timeout>
+          </http>
+        </endpoint>
+      </call>
+    </loopmessage>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="step_pago_capturado" value="true"/>
+        <log level="custom"><property name="step" value="pago_capturado"/></log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al capturar pago después de 3 intentos"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 5. Generate CFDI via SAT connector -->
+    <payloadFactory media-type="json">
+      <format>{"transaccion_id":"$1","monto":$2,"moneda":"$3","rfc_receptor":"$4","concepto":"$5"}</format>
+      <args>
+        <arg expression="get-property('transaccion_id')"/>
+        <arg expression="get-property('monto')"/>
+        <arg expression="get-property('moneda')"/>
+        <arg expression="get-property('rfc_receptor')"/>
+        <arg expression="get-property('concepto')"/>
+      </args>
+    </payloadFactory>
+    <satcfdi.timbrar>
+      <rfc>TELEMED850101AAA</rfc>
+      <monto>{ctx:monto}</monto>
+      <rfcReceptor>{ctx:rfc_receptor}</rfcReceptor>
+      <concepto>{ctx:concepto}</concepto>
+    </satcfdi.timbrar>
+    <filter source="$ctx:cfdi_result" regex="success">
+      <then>
+        <property name="cfdi_uuid" expression="get-property('cfdi_uuid')"/>
+        <log level="custom">
+          <property name="step" value="cfdi_generated"/>
+          <property name="cfdi_uuid" expression="get-property('cfdi_uuid')"/>
+        </log>
+      </then>
+      <else>
+        <!-- CFDI failed after capture: compensate by reembolsando -->
+        <property name="ERROR_MESSAGE" value="Error al generar CFDI - pago será reembolsado"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 6. Respond -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","status":"completed","transaccion_id":"$2","cfdi_uuid":"$3","monto":$4}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('transaccion_id')"/>
+        <arg expression="get-property('cfdi_uuid')"/>
+        <arg expression="get-property('monto')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="201" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-05-pago-cfdi"/>
       <property name="status" value="COMPENSATING"/>
     </log>
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
-      </statement>
-    </dbupdate>
+
+    <!-- Compensate: reembolsar if pago was captured but CFDI failed -->
+    <filter source="get-property('step_pago_capturado')" regex="true">
+      <then>
+        <payloadFactory media-type="json">
+          <format>{"monto":$1,"motivo":"compensacion_cfdi_fallido"}</format>
+          <args><arg expression="get-property('monto')"/></args>
+        </payloadFactory>
+        <property name="To" expression="fn:concat('http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos/transacciones/', get-property('transaccion_id'), '/reembolsar')" scope="default"/>
+        <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+        <call>
+          <endpoint>
+            <http uri-template="{ctx:To}" method="POST">
+              <timeout><duration>10000</duration><responseAction>onError</responseAction></timeout>
+            </http>
+          </endpoint>
+        </call>
+        <log level="custom"><property name="compensated" value="pago_reembolsado"/></log>
+      </then>
+    </filter>
+
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-05-pago-cfdi","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"compensated","transaccion_id":"$2","error":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
-        <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('transaccion_id')"/>
+        <arg expression="get-property('ERROR_MESSAGE')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>

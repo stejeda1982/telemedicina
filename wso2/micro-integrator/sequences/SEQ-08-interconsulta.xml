@@ -1,91 +1,175 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SEQ-08-interconsulta: Interconsulta con consentimiento
-  Pattern: sequential
-  Services: mensajería + expediente(compartir) + notificaciones
-  Saga state: persisted in wso2-mi MySQL saga_state table.
+  SEQ-08-interconsulta: Solicitud de interconsulta entre especialistas
+  Pattern: saga
+  Services: mensajeria(interconsulta) + profesionales(search) + agenda(create cita) + notificaciones(event)
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract conversacion_id + especialidad + motivo
+    2. Create interconsulta request (POST mensajeria/conversaciones/{id}/interconsulta)
+    3. Find available profesional of requested specialty (GET profesionales?especialidad=...)
+    4. Create cita for interconsulta (POST agenda/citas)
+    5. Notify both profesionales via event (published by agenda service via outbox)
+    6. Respond with interconsulta_id + cita_id
+
+  Compensation: if cita creation fails, cancel interconsulta
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-08-interconsulta"
      context="/seq-08-interconsulta"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-08-interconsulta"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-08-interconsulta" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
-      </statement>
-    </dblookup>
-
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-08-interconsulta"/>
-      <property name="pattern" value="sequential"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
-
-    <!-- 4. Compose response payload -->
-    <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-08-interconsulta","status":"completed","services":"mensajería + expediente(compartir) + notificaciones"}</format>
-      <args>
-        <arg expression="get-property('saga_id')"/>
-      </args>
-    </payloadFactory>
-
-    <!-- 5. Update saga_state to COMPLETED -->
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
-        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- Extract request fields -->
+    <property name="conversacion_id" expression="json-eval($.conversacion_id)"/>
+    <property name="especialidad" expression="json-eval($.especialidad)"/>
+    <property name="motivo" expression="json-eval($.motivo)"/>
+    <property name="paciente_id" expression="json-eval($.paciente_id)"/>
+    <property name="fecha_preferida" expression="json-eval($.fecha_preferida)"/>
+
+    <!-- 3. Create interconsulta request -->
+    <payloadFactory media-type="json">
+      <format>{"especialidad":"$1","motivo":"$2"}</format>
+      <args>
+        <arg expression="get-property('especialidad')"/>
+        <arg expression="get-property('motivo')"/>
+      </args>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-mensajeria.core.svc.cluster.local:3009/api/v1/mensajeria/conversaciones/', get-property('conversacion_id'), '/interconsulta')" scope="default"/>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="POST">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="interconsulta_id" expression="json-eval($.id)"/>
+        <property name="step_interconsulta_created" value="true"/>
+        <log level="custom">
+          <property name="step" value="interconsulta_created"/>
+          <property name="interconsulta_id" expression="get-property('interconsulta_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear interconsulta"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 4. Find available profesional of requested specialty -->
+    <property name="To" expression="fn:concat('http://servicio-profesionales.core.svc.cluster.local:3003/api/v1/profesionales?especialidad=', get-property('especialidad'), '&amp;estado=activo')" scope="default"/>
+    <property name="HTTP_METHOD" value="GET" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="GET">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="200">
+      <then>
+        <property name="profesional_interconsulta_id" expression="json-eval($.[0].profesional_id)"/>
+        <log level="custom">
+          <property name="step" value="profesional_found"/>
+          <property name="profesional_interconsulta_id" expression="get-property('profesional_interconsulta_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="No se encontró profesional de la especialidad solicitada"/>
+        <sequence key="fault-response-404"/>
+      </else>
+    </filter>
+
+    <!-- 5. Create cita for interconsulta -->
+    <payloadFactory media-type="json">
+      <format>{"paciente_id":"$1","profesional_id":"$2","tipo_consulta":"interconsulta","fecha_hora":"$3"}</format>
+      <args>
+        <arg expression="get-property('paciente_id')"/>
+        <arg expression="get-property('profesional_interconsulta_id')"/>
+        <arg expression="get-property('fecha_preferida')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda/citas" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="cita_interconsulta_id" expression="json-eval($.cita_id)"/>
+        <log level="custom">
+          <property name="step" value="cita_interconsulta_created"/>
+          <property name="cita_interconsulta_id" expression="get-property('cita_interconsulta_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear cita de interconsulta"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 6. Respond -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","status":"completed","interconsulta_id":"$2","cita_id":"$3","profesional_id":"$4","especialidad":"$5"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('interconsulta_id')"/>
+        <arg expression="get-property('cita_interconsulta_id')"/>
+        <arg expression="get-property('profesional_interconsulta_id')"/>
+        <arg expression="get-property('especialidad')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="201" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-08-interconsulta"/>
       <property name="status" value="COMPENSATING"/>
     </log>
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
-      </statement>
-    </dbupdate>
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-08-interconsulta","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"error","interconsulta_id":"$2","error":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
-        <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('interconsulta_id')"/>
+        <arg expression="get-property('ERROR_MESSAGE')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>

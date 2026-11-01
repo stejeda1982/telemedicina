@@ -2,90 +2,157 @@
 <!--
   SEQ-02-checkin-video: Check-in y admisión a videoconsulta
   Pattern: sequential
-  Services: agenda + video + notificaciones
-  Saga state: persisted in wso2-mi MySQL saga_state table.
+  Services: agenda(validate) + video(create session)
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract cita_id from request
+    2. Validate cita exists and is in 'confirmada' state (GET agenda/citas/{id})
+    3. Create video session (POST video/sesiones) → get room_token
+    4. Respond with room_token + participant info
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-02-checkin-video"
      context="/seq-02-checkin-video"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-02-checkin-video"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-02-checkin-video" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
-      </statement>
-    </dblookup>
-
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-02-checkin-video"/>
-      <property name="pattern" value="sequential"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
-
-    <!-- 4. Compose response payload -->
-    <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-02-checkin-video","status":"completed","services":"agenda + video + notificaciones"}</format>
-      <args>
-        <arg expression="get-property('saga_id')"/>
-      </args>
-    </payloadFactory>
-
-    <!-- 5. Update saga_state to COMPLETED -->
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
-        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- 3. Extract cita_id -->
+    <property name="cita_id" expression="json-eval($.cita_id)"/>
+    <property name="grabacion" expression="json-eval($.grabacion)"/>
+
+    <!-- 4. Validate cita exists and is confirmada -->
+    <property name="To" expression="fn:concat('http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda/citas/', get-property('cita_id'))" scope="default"/>
+    <property name="HTTP_METHOD" value="GET" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="GET">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="200">
+      <then>
+        <property name="cita_estado" expression="json-eval($.estado)"/>
+        <property name="cita_paciente_id" expression="json-eval($.paciente_id)"/>
+        <property name="cita_profesional_id" expression="json-eval($.profesional_id)"/>
+      </then>
+      <else>
+        <payloadFactory media-type="json">
+          <format>{"error":"Cita no encontrada","cita_id":"$1"}</format>
+          <args><arg expression="get-property('cita_id')"/></args>
+        </payloadFactory>
+        <property name="HTTP_SC" value="404" scope="axis2"/>
+        <respond/>
+      </else>
+    </filter>
+
+    <!-- Check cita is in confirmada state -->
+    <filter source="get-property('cita_estado')" regex="confirmada">
+      <then>
+        <log level="custom"><property name="step" value="cita_confirmada"/></log>
+      </then>
+      <else>
+        <payloadFactory media-type="json">
+          <format>{"error":"Cita no está en estado confirmada","estado_actual":"$1"}</format>
+          <args><arg expression="get-property('cita_estado')"/></args>
+        </payloadFactory>
+        <property name="HTTP_SC" value="409" scope="axis2"/>
+        <respond/>
+      </else>
+    </filter>
+
+    <!-- 5. Create video session -->
+    <payloadFactory media-type="json">
+      <format>{"cita_id":"$1","grabacion":$2}</format>
+      <args>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('grabacion')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-video.core.svc.cluster.local:3005/api/v1/video/sesiones" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="sesion_id" expression="json-eval($.sesion_id)"/>
+        <property name="room_token" expression="json-eval($.room_token)"/>
+        <log level="custom">
+          <property name="step" value="video_session_created"/>
+          <property name="sesion_id" expression="get-property('sesion_id')"/>
+        </log>
+      </then>
+      <else>
+        <payloadFactory media-type="json">
+          <format>{"error":"Error al crear sesión de video"}</format>
+        </payloadFactory>
+        <property name="HTTP_SC" value="502" scope="axis2"/>
+        <respond/>
+      </else>
+    </filter>
+
+    <!-- 6. Respond with session info -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","cita_id":"$2","sesion_id":"$3","room_token":"$4","paciente_id":"$5","profesional_id":"$6"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('sesion_id')"/>
+        <arg expression="get-property('room_token')"/>
+        <arg expression="get-property('cita_paciente_id')"/>
+        <arg expression="get-property('cita_profesional_id')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="200" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-02-checkin-video"/>
-      <property name="status" value="COMPENSATING"/>
+      <property name="status" value="FAULT"/>
+      <property name="error" expression="$ctx:ERROR_MESSAGE"/>
     </log>
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
-      </statement>
-    </dbupdate>
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-02-checkin-video","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"error","error":"$2","correlation_id":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
         <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('correlation_id')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>

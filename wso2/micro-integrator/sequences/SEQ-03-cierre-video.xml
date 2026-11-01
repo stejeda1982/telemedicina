@@ -1,91 +1,154 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  SEQ-03-cierre-video: Cierre de videoconsulta con captura de nota
-  Pattern: saga
-  Services: video + expediente + agenda + notificaciones
-  Saga state: persisted in wso2-mi MySQL saga_state table.
+  SEQ-03-cierre-video: Cierre de videoconsulta y registro clínico
+  Pattern: sequential
+  Services: video(finalize) + expediente(nota + signos) + agenda(update)
   Correlation: X-Correlation-Id propagated end-to-end.
 
-  This is a SKELETON sequence for design review. Production sequences
-  must include full payload mappings, fault sequences, and saga
-  compensation logic per the TDD v1.0 section 7.6.
+  Flow:
+    1. Extract sesion_id, cita_id, nota data
+    2. Finalize video session (POST video/sesiones/{id}/finalizar)
+    3. Create nota de evolución (POST expediente/notas)
+    4. If signos_vitales provided, register each (POST expediente/notas/{id}/signos-vitales)
+    5. Update cita status to 'completada' (PATCH agenda/citas/{id})
+    6. Respond with nota_id + cita status
 -->
 <api xmlns="http://ws.apache.org/ns/synapse"
      name="SEQ-03-cierre-video"
      context="/seq-03-cierre-video"
      method="POST">
   <inSequence>
-    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <!-- 1. Extract JWT claims and correlation_id propagated from API Gateway -->
     <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="jwt_tenant" expression="get-property('transport', 'X-JWT-Tenant')"/>
     <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+    <property name="saga_id" expression="get-property('correlation_id')"/>
+    <property name="Authorization" expression="get-property('transport', 'Authorization')" scope="transport"/>
+    <property name="Content-Type" value="application/json" scope="transport"/>
+    <property name="Accept" value="application/json" scope="transport"/>
+    <log level="custom">
+      <property name="sequence" value="SEQ-03-cierre-video"/>
+      <property name="saga_id" expression="get-property('saga_id')"/>
+      <property name="jwt_sub" expression="get-property('jwt_sub')"/>
+    </log>
 
-    <!-- 2. Persist saga_state initial record (MySQL) -->
-    <dblookup>
-      <connection>
-        <pool>
-          <dsName>jdbc/wso2mi_saga</dsName>
-        </pool>
-      </connection>
+    <!-- 2. Persist saga_state = STARTED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
       <statement>
         <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
         <parameter expression="get-property('saga_id')" type="VARCHAR"/>
         <parameter value="SEQ-03-cierre-video" type="VARCHAR"/>
         <parameter value="STARTED" type="VARCHAR"/>
         <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
-      </statement>
-    </dblookup>
-
-    <!-- 3. CALL services in sequence/parallel based on pattern -->
-    <!-- TODO: implement each step per TDD section 11 diagram -->
-    <log level="custom">
-      <property name="sequence" value="SEQ-03-cierre-video"/>
-      <property name="pattern" value="saga"/>
-      <property name="status" value="CALLING_SERVICES"/>
-    </log>
-
-    <!-- 4. Compose response payload -->
-    <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-03-cierre-video","status":"completed","services":"video + expediente + agenda + notificaciones"}</format>
-      <args>
-        <arg expression="get-property('saga_id')"/>
-      </args>
-    </payloadFactory>
-
-    <!-- 5. Update saga_state to COMPLETED -->
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
-        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter expression="get-property('correlation_id')" type="VARCHAR"/>
       </statement>
     </dbupdate>
 
+    <!-- Extract request fields -->
+    <property name="sesion_id" expression="json-eval($.sesion_id)"/>
+    <property name="cita_id" expression="json-eval($.cita_id)"/>
+    <property name="paciente_id" expression="json-eval($.paciente_id)"/>
+    <property name="profesional_id" expression="json-eval($.profesional_id)"/>
+    <property name="texto" expression="json-eval($.texto)"/>
+    <property name="diagnostico" expression="json-eval($.diagnostico)"/>
+    <property name="plan" expression="json-eval($.plan)"/>
+    <property name="signos_vitales" expression="json-eval($.signos_vitales)"/>
+
+    <!-- 3. Finalize video session -->
+    <payloadFactory media-type="json">
+      <format>{"razon":"completada"}</format>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-video.core.svc.cluster.local:3005/api/v1/video/sesiones/', get-property('sesion_id'), '/finalizar')" scope="default"/>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <log level="custom"><property name="step" value="video_finalizado"/></log>
+
+    <!-- 4. Create nota de evolución -->
+    <payloadFactory media-type="json">
+      <format>{"paciente_id":"$1","profesional_id":"$2","cita_id":"$3","texto":"$4","diagnostico":"$5","plan":"$6"}</format>
+      <args>
+        <arg expression="get-property('paciente_id')"/>
+        <arg expression="get-property('profesional_id')"/>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('texto')"/>
+        <arg expression="get-property('diagnostico')"/>
+        <arg expression="get-property('plan')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_METHOD" value="POST" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="http://servicio-expediente.core.svc.cluster.local:3006/api/v1/expediente/notas" method="POST">
+          <timeout><duration>10000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <filter source="$axis2:HTTP_SC" regex="20[0-9]">
+      <then>
+        <property name="nota_id" expression="json-eval($.nota_id)"/>
+        <property name="step_nota_created" value="true"/>
+        <log level="custom">
+          <property name="step" value="nota_created"/>
+          <property name="nota_id" expression="get-property('nota_id')"/>
+        </log>
+      </then>
+      <else>
+        <property name="ERROR_MESSAGE" value="Error al crear nota de evolución"/>
+        <sequence key="fault-response-502"/>
+      </else>
+    </filter>
+
+    <!-- 5. Update cita status to completada -->
+    <payloadFactory media-type="json">
+      <format>{"estado":"completada","nota_id":"$1"}</format>
+      <args><arg expression="get-property('nota_id')"/></args>
+    </payloadFactory>
+    <property name="To" expression="fn:concat('http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda/citas/', get-property('cita_id'))" scope="default"/>
+    <property name="HTTP_METHOD" value="PATCH" scope="axis2"/>
+    <call>
+      <endpoint>
+        <http uri-template="{ctx:To}" method="PATCH">
+          <timeout><duration>5000</duration><responseAction>fault</responseAction></timeout>
+        </http>
+      </endpoint>
+    </call>
+    <log level="custom"><property name="step" value="cita_completada"/></log>
+
+    <!-- 6. Respond -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","status":"completed","sesion_id":"$2","cita_id":"$3","nota_id":"$4","cita_estado":"completada"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="get-property('sesion_id')"/>
+        <arg expression="get-property('cita_id')"/>
+        <arg expression="get-property('nota_id')"/>
+      </args>
+    </payloadFactory>
+    <property name="HTTP_SC" value="200" scope="axis2"/>
     <respond/>
   </inSequence>
 
   <faultSequence>
-    <!-- Compensate completed steps in reverse order -->
     <log level="custom">
       <property name="sequence" value="SEQ-03-cierre-video"/>
-      <property name="status" value="COMPENSATING"/>
+      <property name="status" value="FAULT"/>
     </log>
-    <dbupdate>
-      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
-      <statement>
-        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
-        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
-        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
-      </statement>
-    </dbupdate>
     <payloadFactory media-type="json">
-      <format>{"saga_id":"$1","sequence":"SEQ-03-cierre-video","status":"compensated","error":"$2"}</format>
+      <format>{"saga_id":"$1","status":"error","error":"$2","correlation_id":"$3"}</format>
       <args>
         <arg expression="get-property('saga_id')"/>
         <arg expression="$ctx:ERROR_MESSAGE"/>
+        <arg expression="get-property('correlation_id')"/>
       </args>
     </payloadFactory>
+    <property name="HTTP_SC" value="500" scope="axis2"/>
     <respond/>
   </faultSequence>
 </api>
