@@ -4,7 +4,7 @@
 import {
   IsString, IsNotEmpty, IsOptional, IsEmail, IsUUID, IsDateString,
   IsInt, IsNumber, IsBoolean, IsIn, IsArray, IsUrl, IsIP, Length,
-  Matches, Min, Max, ValidateNested,
+  Matches, Min, Max, ValidateNested, ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
@@ -22,7 +22,7 @@ export class CreateRecetaDto {
   @IsOptional() @IsBoolean()
   es_controlada?: boolean;
 
-  @IsArray() @ValidateNested({ each: true }) @Type(() => ItemRecetaDto)
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ItemRecetaDto)
   items: any[];
 
 }

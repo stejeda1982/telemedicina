@@ -7,4 +7,10 @@ module.exports = {
     '^@telemed/common$': '<rootDir>/test/mocks/common.ts',
     '^@telemed/contracts$': '<rootDir>/test/mocks/contracts.ts',
   },
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: 'tsconfig.spec.json',
+      isolatedModules: true,
+    }],
+  },
 };
