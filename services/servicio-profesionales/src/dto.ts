@@ -11,16 +11,16 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateProfesionalDto {
   @IsUUID()
-  user_id: string;
+  user_id!: string;
 
   @IsString() @Matches(/^\d{7,8}$/, { message: 'Cédula debe tener 7-8 dígitos' })
-  cedula: string;
+  cedula!: string;
 
   @IsString() @Length(2, 100)
-  nombres: string;
+  nombres!: string;
 
   @IsString() @Length(2, 100)
-  apellidos: string;
+  apellidos!: string;
 
   @IsOptional() @IsString() @Length(0, 2000)
   biografia?: string;
@@ -32,10 +32,10 @@ export class CreateProfesionalDto {
 
 export class CreateTarifaDto {
   @IsIn(['primera_vez','subsecuente','urgencia','interconsulta'])
-  tipo_consulta: string;
+  tipo_consulta!: string;
 
-  @IsNumber({ max_decimal_places: 2 }) @Min(0)
-  monto: number;
+  @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  monto!: number;
 
   @IsOptional() @IsIn(['MXN','USD'])
   moneda?: string;

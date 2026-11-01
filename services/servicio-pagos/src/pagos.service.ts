@@ -31,7 +31,7 @@ export class PagosService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.transaccion.findFirst({ where: { user_id } });
+    const rec = await this.prisma.transaccion.findFirst({ where: { paciente_id: user_id } });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
@@ -49,7 +49,7 @@ export class PagosService {
 
   async create(dto: CreateTransaccionDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.transaccion.create({ data: dto });
+      const rec = await tx.transaccion.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.pago.capturado.v1',
         { transaccion_id: rec.transaccion_id, cita_id: rec.cita_id, paciente_id: rec.paciente_id, moneda: rec.moneda },
@@ -62,7 +62,7 @@ export class PagosService {
   async update(id: string, dto: UpdateTransaccionDto) {
     return this.prisma.transaccion.update({
       where: { transaccion_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

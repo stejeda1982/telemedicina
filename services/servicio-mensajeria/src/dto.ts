@@ -11,10 +11,10 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateConversacionDto {
   @IsUUID()
-  paciente_id: string;
+  paciente_id!: string;
 
   @IsUUID()
-  profesional_id: string;
+  profesional_id!: string;
 
   @IsOptional() @IsUUID()
   cita_id?: string;
@@ -26,16 +26,16 @@ export class CreateConversacionDto {
 
 export class SendMensajeDto {
   @IsString() @Length(1, 1000)
-  texto: string;
+  texto!: string;
 
 }
 
 export class SolicitarInterconsultaDto {
   @IsString() @Length(2, 100)
-  especialidad: string;
+  especialidad!: string;
 
   @IsString() @Length(10, 1000)
-  motivo: string;
+  motivo!: string;
 
 }
 

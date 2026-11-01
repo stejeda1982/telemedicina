@@ -17,13 +17,13 @@ export class MensajeriaController {
   @Post('conversaciones')
   @ApiOperation({ summary: 'Crea conversación (paciente-profesional)' })
   async crea_conversacion_paciente_profesional(@Body() dto: CreateConversacionDto) {
-    return this.svc.list(req.query);
+    return this.svc.create(dto);
   }
 
   @Get('conversaciones')
   @ApiOperation({ summary: 'Lista conversaciones del usuario' })
-  async lista_conversaciones_del_usuario() {
-    return this.svc.list(req.query);
+  async lista_conversaciones_del_usuario(@Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Post('conversaciones/:id/mensajes')

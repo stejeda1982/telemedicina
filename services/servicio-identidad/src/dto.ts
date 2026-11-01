@@ -10,13 +10,13 @@ import { Type } from 'class-transformer';
 
 export class CreateUsuarioPerfilDto {
   @IsString() @IsNotEmpty()
-  wso2_user_id: string;
+  wso2_user_id!: string;
 
   @IsString() @IsIn(['paciente','profesional','admin'])
-  dominio: string;
+  dominio!: string;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsOptional() @IsString()
   telefono?: string;

@@ -11,10 +11,10 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateAplicacionDto {
   @IsString() @Length(2, 100)
-  nombre: string;
+  nombre!: string;
 
   @IsString() @Length(8, 100)
-  client_id: string;
+  client_id!: string;
 
   @IsOptional() @IsIn(['smart_on_fhir','hl7_v2','webhook','rest'])
   tipo?: string;
@@ -23,13 +23,13 @@ export class CreateAplicacionDto {
 
 export class CreateWebhookDto {
   @IsUUID()
-  app_id: string;
+  app_id!: string;
 
   @IsUrl()
-  url: string;
+  url!: string;
 
   @IsString()
-  evento_tipo: string;
+  evento_tipo!: string;
 
 }
 

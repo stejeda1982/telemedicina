@@ -12,12 +12,12 @@ import { CreateSesionDto, UpdateSesionDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @Controller('video')
 export class VideoController {
-  constructor(private readonly svc: VideoService) {}
+  constructor(private readonly svc: VideoService, @Query() query: any) {}
 
   @Post('sesiones')
   @ApiOperation({ summary: 'Crea sesión WebRTC para una cita' })
-  async crea_sesion_webrtc_para_una_cita(@Body() dto: CreateSesionDto) {
-    return this.svc.list(req.query);
+  async crea_sesion_webrtc_para_una_cita(@Body() dto: CreateSesionDto, @Query() query: any) {
+    return this.svc.create(dto);
   }
 
   @Get('sesiones/:id')

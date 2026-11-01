@@ -18,7 +18,7 @@ describe('AgendaService', () => {
   beforeEach(async () => {
     // Mock PrismaService: $transaction executes the callback with the tx object
     // (which is the mock itself, so tx.cita.create resolves).
-    const mockPrisma = {
+    const mockPrisma: any = {
       $transaction: jest.fn(async (cb: any) => cb(mockPrisma)),
       cita: { create: jest.fn() },
     };

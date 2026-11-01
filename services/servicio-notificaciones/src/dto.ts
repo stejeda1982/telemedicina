@@ -11,19 +11,19 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateNotificacionDto {
   @IsUUID()
-  destinatario_id: string;
+  destinatario_id!: string;
 
   @IsIn(['cita_reservada','cita_recordatorio','receta_emitida','pago_confirmado','mensaje_nuevo','alerta_critica'])
-  tipo: string;
+  tipo!: string;
 
   @IsString() @Length(1, 200)
-  titulo: string;
+  titulo!: string;
 
   @IsString() @Length(1, 2000)
-  cuerpo: string;
+  cuerpo!: string;
 
   @IsIn(['email','sms','whatsapp','push','app'])
-  canal: string;
+  canal!: string;
 
   @IsOptional() @IsUUID()
   correlation_id?: string;
@@ -32,13 +32,13 @@ export class CreateNotificacionDto {
 
 export class UpdatePreferenciasDto {
   @IsIn(['email','sms','whatsapp','push','app'])
-  canal: string;
+  canal!: string;
 
   @IsString()
-  tipo: string;
+  tipo!: string;
 
   @IsBoolean()
-  habilitado: boolean;
+  habilitado!: boolean;
 
 }
 

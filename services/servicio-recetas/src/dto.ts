@@ -11,10 +11,10 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateRecetaDto {
   @IsUUID()
-  paciente_id: string;
+  paciente_id!: string;
 
   @IsUUID()
-  profesional_id: string;
+  profesional_id!: string;
 
   @IsOptional() @IsUUID()
   cita_id?: string;
@@ -23,28 +23,28 @@ export class CreateRecetaDto {
   es_controlada?: boolean;
 
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ItemRecetaDto)
-  items: any[];
+  items!: any[];
 
 }
 
 export class ItemRecetaDto {
   @IsString() @Length(2, 200)
-  medicamento: string;
+  medicamento!: string;
 
   @IsString() @Length(1, 100)
-  dosis: string;
+  dosis!: string;
 
   @IsString() @Length(1, 100)
-  frecuencia: string;
+  frecuencia!: string;
 
   @IsString() @Length(1, 50)
-  duracion: string;
+  duracion!: string;
 
 }
 
 export class FirmarRecetaDto {
   @IsString()
-  certificado: string;
+  certificado!: string;
 
   @IsOptional() @IsIn(['sha256','sha512'])
   algoritmo?: string;
@@ -53,10 +53,10 @@ export class FirmarRecetaDto {
 
 export class EnviarRecetaDto {
   @IsIn(['email','sms','whatsapp','app'])
-  canal: string;
+  canal!: string;
 
   @IsString() @Length(5, 100)
-  destino: string;
+  destino!: string;
 
 }
 

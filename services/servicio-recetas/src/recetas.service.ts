@@ -31,7 +31,7 @@ export class RecetasService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.receta.findFirst({ where: { user_id } });
+    const rec = await this.prisma.receta.findFirst({ where: { paciente_id: user_id } });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
@@ -49,7 +49,7 @@ export class RecetasService {
 
   async create(dto: CreateRecetaDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.receta.create({ data: dto });
+      const rec = await tx.receta.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.receta.emitida.v1',
         { receta_id: rec.receta_id, paciente_id: rec.paciente_id, profesional_id: rec.profesional_id, es_controlada: rec.es_controlada },
@@ -62,7 +62,7 @@ export class RecetasService {
   async update(id: string, dto: UpdateRecetaDto) {
     return this.prisma.receta.update({
       where: { receta_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

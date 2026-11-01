@@ -27,14 +27,14 @@ export class NotificacionesService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.notificacion.findFirst({ where: { user_id } });
+    const rec = await this.prisma.notificacion.findFirst({ where: { user_id } as any });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.notificacion.findMany({
-      where: { paciente_id },
+      where: { paciente_id } as any,
       orderBy: { created_at: 'desc' },
     });
   }
@@ -44,13 +44,13 @@ export class NotificacionesService {
   }
 
   async create(dto: CreateNotificacionDto) {
-    return this.prisma.notificacion.create({ data: dto });
+    return this.prisma.notificacion.create({ data: dto as any });
   }
 
   async update(id: string, dto: UpdateNotificacionDto) {
     return this.prisma.notificacion.update({
       where: { notificacion_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

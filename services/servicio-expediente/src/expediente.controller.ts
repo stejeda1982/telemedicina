@@ -12,7 +12,7 @@ import { CreateNotaDto, UpdateNotaDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @Controller('expediente')
 export class ExpedienteController {
-  constructor(private readonly svc: ExpedienteService) {}
+  constructor(private readonly svc: ExpedienteService, @Query() query: any) {}
 
   @Get('paciente/:paciente_id/notas')
   @ApiOperation({ summary: 'Lista notas de evolución del paciente' })
@@ -22,8 +22,8 @@ export class ExpedienteController {
 
   @Post('notas')
   @ApiOperation({ summary: 'Crea nota de evolución (vincula cita)' })
-  async crea_nota_de_evolucion_vincula_cita(@Body() dto: CreateNotaDto) {
-    return this.svc.list(req.query);
+  async crea_nota_de_evolucion_vincula_cita(@Body() dto: CreateNotaDto, @Query() query: any) {
+    return this.svc.create(dto);
   }
 
   @Get('notas/:id')
@@ -46,8 +46,8 @@ export class ExpedienteController {
 
   @Post('paciente/:paciente_id/acceso')
   @ApiOperation({ summary: 'Registra acceso al expediente (auditoría)' })
-  async registra_acceso_al_expediente_auditoria(@Param('paciente_id') paciente_id: string, @Body() dto: any) {
-    return this.svc.list(req.query);
+  async registra_acceso_al_expediente_auditoria(@Param('paciente_id') paciente_id: string, @Body() dto: any, @Query() query: any) {
+    return this.svc.create(dto);
   }
 
   @Public()

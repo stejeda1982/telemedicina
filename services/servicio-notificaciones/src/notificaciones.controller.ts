@@ -12,7 +12,7 @@ import { CreateNotificacionDto, UpdateNotificacionDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @Controller('notificaciones')
 export class NotificacionesController {
-  constructor(private readonly svc: NotificacionesService) {}
+  constructor(private readonly svc: NotificacionesService, @Query() query: any) {}
 
   @Post('')
   @ApiOperation({ summary: 'Encola notificación (consumida por NATS)' })
@@ -34,8 +34,8 @@ export class NotificacionesController {
 
   @Patch('preferencias')
   @ApiOperation({ summary: 'Actualiza preferencias multi-canal' })
-  async actualiza_preferencias_multi_canal(@Body() dto: any) {
-    return this.svc.list(req.query);
+  async actualiza_preferencias_multi_canal(@Body() dto: any, @Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Public()

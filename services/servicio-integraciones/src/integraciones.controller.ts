@@ -28,26 +28,26 @@ export class IntegracionesController {
 
   @Get('fhir/MedicationRequest')
   @ApiOperation({ summary: 'Recetas como MedicationRequest' })
-  async recetas_como_medicationrequest() {
-    return this.svc.list(req.query);
+  async recetas_como_medicationrequest(@Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Post('fhir/Communication')
   @ApiOperation({ summary: 'Crea Communication (mensaje clínico)' })
   async crea_communication_mensaje_clinico(@Body() dto: any) {
-    return this.svc.list(req.query);
+    return this.svc.create(dto);
   }
 
   @Post('aplicaciones')
   @ApiOperation({ summary: 'Registra aplicación SMART on FHIR' })
   async registra_aplicacion_smart_on_fhir(@Body() dto: CreateAplicacionDto) {
-    return this.svc.list(req.query);
+    return this.svc.create(dto);
   }
 
   @Post('webhooks')
   @ApiOperation({ summary: 'Registra webhook para eventos' })
   async registra_webhook_para_eventos(@Body() dto: any) {
-    return this.svc.list(req.query);
+    return this.svc.create(dto);
   }
 
   @Public()

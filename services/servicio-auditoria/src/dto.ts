@@ -17,10 +17,10 @@ export class CreateEventoAuditoriaDto {
   actor_tipo?: string;
 
   @IsString() @Length(2, 100)
-  accion: string;
+  accion!: string;
 
   @IsString() @Length(2, 100)
-  recurso_tipo: string;
+  recurso_tipo!: string;
 
   @IsOptional() @IsString()
   recurso_id?: string;

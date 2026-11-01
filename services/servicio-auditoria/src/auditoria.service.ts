@@ -14,7 +14,7 @@ export class AuditoriaService {
     return this.prisma.eventoAuditoria.findMany({
       where: this.normalizeWhere(where),
       skip: Number(skip), take: Number(take),
-      orderBy: { created_at: 'desc' },
+      orderBy: { timestamp: 'desc' },
     });
   }
 
@@ -27,15 +27,15 @@ export class AuditoriaService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.eventoAuditoria.findFirst({ where: { user_id } });
+    const rec = await this.prisma.eventoAuditoria.findFirst({ where: { actor_id: user_id } });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.eventoAuditoria.findMany({
-      where: { paciente_id },
-      orderBy: { created_at: 'desc' },
+      where: { paciente_id } as any,
+      orderBy: { timestamp: 'desc' },
     });
   }
 
@@ -44,13 +44,13 @@ export class AuditoriaService {
   }
 
   async create(dto: CreateEventoAuditoriaDto) {
-    return this.prisma.eventoAuditoria.create({ data: dto });
+    return this.prisma.eventoAuditoria.create({ data: dto as any });
   }
 
   async update(id: string, dto: UpdateEventoAuditoriaDto) {
     return this.prisma.eventoAuditoria.update({
       where: { evento_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

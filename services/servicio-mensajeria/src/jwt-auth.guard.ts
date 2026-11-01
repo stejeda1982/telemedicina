@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import * as jwt from 'jsonwebtoken';
-import * as jwksClient from 'jwks-rsa';
+import jwksClient from 'jwks-rsa';
 
 // Validates JWT access tokens issued by WSO2 Identity Server using the JWKS endpoint.
 // Tokens are RS256-signed; the corresponding public key is fetched and cached.

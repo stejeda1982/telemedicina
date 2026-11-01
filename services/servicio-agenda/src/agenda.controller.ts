@@ -16,8 +16,8 @@ export class AgendaController {
 
   @Get('')
   @ApiOperation({ summary: 'Lista citas (filtros: paciente, profesional, fecha)' })
-  async lista_citas_filtros_paciente_profesional_fecha() {
-    return this.svc.list(req.query);
+  async lista_citas_filtros_paciente_profesional_fecha(@Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Post('')

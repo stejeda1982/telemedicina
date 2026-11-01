@@ -11,16 +11,16 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateNotaDto {
   @IsUUID()
-  paciente_id: string;
+  paciente_id!: string;
 
   @IsUUID()
-  profesional_id: string;
+  profesional_id!: string;
 
   @IsOptional() @IsUUID()
   cita_id?: string;
 
   @IsString() @Length(10, 5000)
-  texto: string;
+  texto!: string;
 
   @IsOptional() @IsString()
   diagnostico?: string;
@@ -32,31 +32,31 @@ export class CreateNotaDto {
 
 export class AddSignoVitalDto {
   @IsString() @Matches(/^\d{4,7}-\d{1,2}$/)
-  loinc_code: string;
+  loinc_code!: string;
 
   @IsString()
-  valor: string;
+  valor!: string;
 
   @IsString() @Length(1, 20)
-  unidad: string;
+  unidad!: string;
 
 }
 
 export class AddAdjuntoDto {
   @IsIn(['imagen','pdf','video','audio'])
-  tipo: string;
+  tipo!: string;
 
   @IsUrl()
-  url_s3: string;
+  url_s3!: string;
 
   @IsString() @Length(8, 128)
-  hash: string;
+  hash!: string;
 
 }
 
 export class RegistrarAccesoDto {
   @IsString() @Length(5, 200)
-  motivo: string;
+  motivo!: string;
 
 }
 

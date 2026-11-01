@@ -31,7 +31,7 @@ export class ExpedienteService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.notaEvolucion.findFirst({ where: { user_id } });
+    const rec = await this.prisma.notaEvolucion.findFirst({ where: { paciente_id: user_id } });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
@@ -49,7 +49,7 @@ export class ExpedienteService {
 
   async create(dto: CreateNotaDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.notaEvolucion.create({ data: dto });
+      const rec = await tx.notaEvolucion.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.nota.creada.v1',
         { nota_id: rec.nota_id, paciente_id: rec.paciente_id, profesional_id: rec.profesional_id },
@@ -62,7 +62,7 @@ export class ExpedienteService {
   async update(id: string, dto: UpdateNotaDto) {
     return this.prisma.notaEvolucion.update({
       where: { nota_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

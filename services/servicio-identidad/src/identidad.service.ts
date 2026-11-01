@@ -23,7 +23,7 @@ export class IdentidadService {
   }
 
   async findById(id: string) {
-    const rec = await this.prisma.usuarioPerfil.findUnique({ where: { user_id: id } });
+    const rec = await this.prisma.usuarioPerfil.findUnique({ where: { user_id: id } as any });
     if (!rec) throw new NotFoundException(`Recurso ${id} no encontrado`);
     return rec;
   }
@@ -31,14 +31,14 @@ export class IdentidadService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.usuarioPerfil.findFirst({ where: { user_id } });
+    const rec = await this.prisma.usuarioPerfil.findFirst({ where: { user_id } as any });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.usuarioPerfil.findMany({
-      where: { paciente_id },
+      where: { paciente_id } as any,
       orderBy: { created_at: 'desc' },
     });
   }
@@ -49,7 +49,7 @@ export class IdentidadService {
 
   async create(dto: CreateUsuarioPerfilDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.usuarioPerfil.create({ data: dto });
+      const rec = await tx.usuarioPerfil.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.usuario.creado.v1',
         { user_id: rec.user_id, wso2_user_id: rec.wso2_user_id, dominio: rec.dominio },
@@ -61,8 +61,8 @@ export class IdentidadService {
 
   async update(id: string, dto: UpdateUsuarioPerfilDto) {
     return this.prisma.usuarioPerfil.update({
-      where: { user_id: id },
-      data: dto,
+      where: { user_id: id } as any,
+      data: dto as any,
     });
   }
 

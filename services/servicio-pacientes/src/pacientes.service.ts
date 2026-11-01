@@ -49,7 +49,7 @@ export class PacientesService {
 
   async create(dto: CreatePacienteDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.paciente.create({ data: dto });
+      const rec = await tx.paciente.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.paciente.creado.v1',
         { paciente_id: rec.paciente_id, curp: rec.curp, tenant_id: rec.tenant_id },
@@ -62,7 +62,7 @@ export class PacientesService {
   async update(id: string, dto: UpdatePacienteDto) {
     return this.prisma.paciente.update({
       where: { paciente_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

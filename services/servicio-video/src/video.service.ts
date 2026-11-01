@@ -31,14 +31,14 @@ export class VideoService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.sesionVideo.findFirst({ where: { user_id } });
+    const rec = await this.prisma.sesionVideo.findFirst({ where: { user_id } as any });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.sesionVideo.findMany({
-      where: { paciente_id },
+      where: { paciente_id } as any,
       orderBy: { created_at: 'desc' },
     });
   }
@@ -49,7 +49,7 @@ export class VideoService {
 
   async create(dto: CreateSesionDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.sesionVideo.create({ data: dto });
+      const rec = await tx.sesionVideo.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.sesion.iniciada.v1',
         { sesion_id: rec.sesion_id, cita_id: rec.cita_id, grabacion: rec.grabacion },
@@ -62,7 +62,7 @@ export class VideoService {
   async update(id: string, dto: UpdateSesionDto) {
     return this.prisma.sesionVideo.update({
       where: { sesion_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

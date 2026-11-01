@@ -12,7 +12,7 @@ import { CreateUsuarioPerfilDto, UpdateUsuarioPerfilDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @Controller('identidad')
 export class IdentidadController {
-  constructor(private readonly svc: IdentidadService) {}
+  constructor(private readonly svc: IdentidadService, @Query() query: any) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado' })
@@ -34,8 +34,8 @@ export class IdentidadController {
 
   @Patch(':user_id')
   @ApiOperation({ summary: 'Actualiza claims del usuario' })
-  async actualiza_claims_del_usuario(@Param('user_id') user_id: string, @Body() dto: any) {
-    return this.svc.list(req.query);
+  async actualiza_claims_del_usuario(@Param('user_id') user_id: string, @Body() dto: any, @Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Get(':user_id/auditoria')

@@ -11,16 +11,16 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateCitaDto {
   @IsUUID()
-  paciente_id: string;
+  paciente_id!: string;
 
   @IsUUID()
-  profesional_id: string;
+  profesional_id!: string;
 
   @IsIn(['primera_vez','subsecuente','urgencia','interconsulta'])
-  tipo_consulta: string;
+  tipo_consulta!: string;
 
   @IsDateString()
-  fecha_hora: string;
+  fecha_hora!: string;
 
   @IsOptional() @IsInt() @Min(15) @Max(180)
   duracion_min?: number;
@@ -29,13 +29,13 @@ export class CreateCitaDto {
 
 export class CancelarCitaDto {
   @IsString() @Length(5, 500)
-  motivo: string;
+  motivo!: string;
 
 }
 
 export class ReprogramarCitaDto {
   @IsDateString()
-  fecha_hora: string;
+  fecha_hora!: string;
 
   @IsOptional() @IsString()
   motivo?: string;

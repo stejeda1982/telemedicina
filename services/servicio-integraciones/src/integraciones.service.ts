@@ -31,14 +31,14 @@ export class IntegracionesService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.aplicacion.findFirst({ where: { user_id } });
+    const rec = await this.prisma.aplicacion.findFirst({ where: { user_id } as any });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.aplicacion.findMany({
-      where: { paciente_id },
+      where: { paciente_id } as any,
       orderBy: { created_at: 'desc' },
     });
   }
@@ -49,7 +49,7 @@ export class IntegracionesService {
 
   async create(dto: CreateAplicacionDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.aplicacion.create({ data: dto });
+      const rec = await tx.aplicacion.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.app.registrada.v1',
         { app_id: rec.app_id, nombre: rec.nombre, client_id: rec.client_id },
@@ -62,7 +62,7 @@ export class IntegracionesService {
   async update(id: string, dto: UpdateAplicacionDto) {
     return this.prisma.aplicacion.update({
       where: { app_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

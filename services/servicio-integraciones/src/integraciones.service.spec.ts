@@ -18,7 +18,7 @@ describe('IntegracionesService', () => {
   beforeEach(async () => {
     // Mock PrismaService: $transaction executes the callback with the tx object
     // (which is the mock itself, so tx.aplicacion.create resolves).
-    const mockPrisma = {
+    const mockPrisma: any = {
       $transaction: jest.fn(async (cb: any) => cb(mockPrisma)),
       aplicacion: { create: jest.fn() },
     };

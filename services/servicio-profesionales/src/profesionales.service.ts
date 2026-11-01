@@ -31,14 +31,14 @@ export class ProfesionalesService {
   async findByUserId(user_id: string) {
     // Used by findMe and by SCIM webhooks from WSO2 IS.
     // Resolves to the aggregate root filtered by user_id when present.
-    const rec = await this.prisma.profesional.findFirst({ where: { user_id } });
+    const rec = await this.prisma.profesional.findFirst({ where: { user_id } as any });
     if (!rec) throw new NotFoundException(`Usuario ${user_id} no encontrado`);
     return rec;
   }
 
   async findByPaciente(paciente_id: string) {
     return this.prisma.profesional.findMany({
-      where: { paciente_id },
+      where: { paciente_id } as any,
       orderBy: { created_at: 'desc' },
     });
   }
@@ -49,7 +49,7 @@ export class ProfesionalesService {
 
   async create(dto: CreateProfesionalDto) {
     return this.prisma.$transaction(async (tx) => {
-      const rec = await tx.profesional.create({ data: dto });
+      const rec = await tx.profesional.create({ data: dto as any });
       await this.outbox.publish(
         'telemedicina.profesional.creado.v1',
         { profesional_id: rec.profesional_id, cedula: rec.cedula, user_id: rec.user_id, tenant_id: rec.tenant_id },
@@ -62,7 +62,7 @@ export class ProfesionalesService {
   async update(id: string, dto: UpdateProfesionalDto) {
     return this.prisma.profesional.update({
       where: { profesional_id: id },
-      data: dto,
+      data: dto as any,
     });
   }
 

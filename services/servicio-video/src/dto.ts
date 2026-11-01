@@ -11,7 +11,7 @@ import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateSesionDto {
   @IsUUID()
-  cita_id: string;
+  cita_id!: string;
 
   @IsOptional() @IsBoolean()
   grabacion?: boolean;
@@ -20,7 +20,7 @@ export class CreateSesionDto {
 
 export class AddMarcadorDto {
   @IsString() @Length(1, 500)
-  descripcion: string;
+  descripcion!: string;
 
 }
 

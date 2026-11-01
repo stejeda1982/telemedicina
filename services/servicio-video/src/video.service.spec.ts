@@ -18,7 +18,7 @@ describe('VideoService', () => {
   beforeEach(async () => {
     // Mock PrismaService: $transaction executes the callback with the tx object
     // (which is the mock itself, so tx.sesionVideo.create resolves).
-    const mockPrisma = {
+    const mockPrisma: any = {
       $transaction: jest.fn(async (cb: any) => cb(mockPrisma)),
       sesionVideo: { create: jest.fn() },
     };

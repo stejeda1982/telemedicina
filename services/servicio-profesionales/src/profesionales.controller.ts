@@ -22,8 +22,8 @@ export class ProfesionalesController {
 
   @Get('')
   @ApiOperation({ summary: 'Lista profesionales (con filtros)' })
-  async lista_profesionales_con_filtros() {
-    return this.svc.list(req.query);
+  async lista_profesionales_con_filtros(@Query() query: any) {
+    return this.svc.list(query);
   }
 
   @Post('')
