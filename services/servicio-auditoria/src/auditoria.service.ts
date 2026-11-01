@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { CreateEventoAuditoriaDto, UpdateEventoAuditoriaDto } from './dto';
 
 // Auto-generated service for servicio-auditoria.
 // The eventoAuditoria model is the aggregate root of this service.
@@ -42,11 +43,11 @@ export class AuditoriaService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
+  async create(dto: CreateEventoAuditoriaDto) {
     return this.prisma.eventoAuditoria.create({ data: dto });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateEventoAuditoriaDto) {
     return this.prisma.eventoAuditoria.update({
       where: { evento_id: id },
       data: dto,

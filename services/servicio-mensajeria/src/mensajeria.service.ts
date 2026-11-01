@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { OutboxService } from '@telemed/common';
+import { CreateConversacionDto, UpdateConversacionDto } from './dto';
 
 // Auto-generated service for servicio-mensajeria.
 // The conversacion model is the aggregate root of this service.
 
 @Injectable()
 export class MensajeriaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(query: any) {
     const { skip = 0, take = 50, ...where } = query;
@@ -42,11 +47,19 @@ export class MensajeriaService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
-    return this.prisma.conversacion.create({ data: dto });
+  async create(dto: CreateConversacionDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rec = await tx.conversacion.create({ data: dto });
+      await this.outbox.publish(
+        'telemedicina.conversacion.iniciada.v1',
+        { conversacion_id: rec.conversacion_id, paciente_id: rec.paciente_id, profesional_id: rec.profesional_id, tipo: rec.tipo },
+        tx,
+      );
+      return rec;
+    });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateConversacionDto) {
     return this.prisma.conversacion.update({
       where: { conversacion_id: id },
       data: dto,

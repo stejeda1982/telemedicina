@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { IntegracionesService } from './integraciones.service';
+import { CreateAplicacionDto, UpdateAplicacionDto } from './dto';
 
 @ApiTags('integraciones')
 @ApiBearerAuth()
@@ -39,7 +40,7 @@ export class IntegracionesController {
 
   @Post('aplicaciones')
   @ApiOperation({ summary: 'Registra aplicación SMART on FHIR' })
-  async registra_aplicacion_smart_on_fhir(@Body() dto: any) {
+  async registra_aplicacion_smart_on_fhir(@Body() dto: CreateAplicacionDto) {
     return this.svc.list(req.query);
   }
 

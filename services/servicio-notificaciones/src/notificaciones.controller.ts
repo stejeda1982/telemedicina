@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { NotificacionesService } from './notificaciones.service';
+import { CreateNotificacionDto, UpdateNotificacionDto } from './dto';
 
 @ApiTags('notificaciones')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class NotificacionesController {
 
   @Post('')
   @ApiOperation({ summary: 'Encola notificación (consumida por NATS)' })
-  async encola_notificacion_consumida_por_nats(@Body() dto: any) {
+  async encola_notificacion_consumida_por_nats(@Body() dto: CreateNotificacionDto) {
     return this.svc.create(dto);
   }
 

@@ -7,6 +7,7 @@ import {
   Matches, Min, Max, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateProfesionalDto {
   @IsUUID()
@@ -41,3 +42,4 @@ export class CreateTarifaDto {
 
 }
 
+export class UpdateProfesionalDto extends PartialType(CreateProfesionalDto) {}

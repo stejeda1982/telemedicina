@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { ProfesionalesService } from './profesionales.service';
+import { CreateProfesionalDto, UpdateProfesionalDto } from './dto';
 
 @ApiTags('profesionales')
 @ApiBearerAuth()
@@ -27,7 +28,7 @@ export class ProfesionalesController {
 
   @Post('')
   @ApiOperation({ summary: 'Crea perfil profesional (admin)' })
-  async crea_perfil_profesional_admin(@Body() dto: any) {
+  async crea_perfil_profesional_admin(@Body() dto: CreateProfesionalDto) {
     return this.svc.create(dto);
   }
 

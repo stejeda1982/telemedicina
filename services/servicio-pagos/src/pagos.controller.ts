@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { PagosService } from './pagos.service';
+import { CreateTransaccionDto, UpdateTransaccionDto } from './dto';
 
 @ApiTags('pagos')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class PagosController {
 
   @Post('')
   @ApiOperation({ summary: 'Crea transacción y autoriza en Stripe/MP' })
-  async crea_transaccion_y_autoriza_en_stripe_mp(@Body() dto: any) {
+  async crea_transaccion_y_autoriza_en_stripe_mp(@Body() dto: CreateTransaccionDto) {
     return this.svc.create(dto);
   }
 

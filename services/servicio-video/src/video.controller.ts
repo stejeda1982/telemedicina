@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { VideoService } from './video.service';
+import { CreateSesionDto, UpdateSesionDto } from './dto';
 
 @ApiTags('video')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class VideoController {
 
   @Post('sesiones')
   @ApiOperation({ summary: 'Crea sesión WebRTC para una cita' })
-  async crea_sesion_webrtc_para_una_cita(@Body() dto: any) {
+  async crea_sesion_webrtc_para_una_cita(@Body() dto: CreateSesionDto) {
     return this.svc.list(req.query);
   }
 

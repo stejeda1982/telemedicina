@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { RecetasService } from './recetas.service';
+import { CreateRecetaDto, UpdateRecetaDto } from './dto';
 
 @ApiTags('recetas')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class RecetasController {
 
   @Post('')
   @ApiOperation({ summary: 'Crea receta en borrador (inicia SEQ-04)' })
-  async crea_receta_en_borrador_inicia_seq_04(@Body() dto: any) {
+  async crea_receta_en_borrador_inicia_seq_04(@Body() dto: CreateRecetaDto) {
     return this.svc.create(dto);
   }
 

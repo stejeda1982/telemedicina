@@ -7,6 +7,7 @@ import {
   Matches, Min, Max, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateRecetaDto {
   @IsUUID()
@@ -59,3 +60,4 @@ export class EnviarRecetaDto {
 
 }
 
+export class UpdateRecetaDto extends PartialType(CreateRecetaDto) {}

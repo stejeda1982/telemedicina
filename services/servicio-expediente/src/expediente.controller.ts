@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { ExpedienteService } from './expediente.service';
+import { CreateNotaDto, UpdateNotaDto } from './dto';
 
 @ApiTags('expediente')
 @ApiBearerAuth()
@@ -21,7 +22,7 @@ export class ExpedienteController {
 
   @Post('notas')
   @ApiOperation({ summary: 'Crea nota de evolución (vincula cita)' })
-  async crea_nota_de_evolucion_vincula_cita(@Body() dto: any) {
+  async crea_nota_de_evolucion_vincula_cita(@Body() dto: CreateNotaDto) {
     return this.svc.list(req.query);
   }
 

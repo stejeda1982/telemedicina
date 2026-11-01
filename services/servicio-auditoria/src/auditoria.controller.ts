@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { AuditoriaService } from './auditoria.service';
+import { CreateEventoAuditoriaDto, UpdateEventoAuditoriaDto } from './dto';
 
 @ApiTags('auditoria')
 @ApiBearerAuth()
@@ -33,7 +34,7 @@ export class AuditoriaController {
 
   @Post('eventos')
   @ApiOperation({ summary: 'Registra evento (consumido por NATS, append-only)' })
-  async registra_evento_consumido_por_nats_append_only(@Body() dto: any) {
+  async registra_evento_consumido_por_nats_append_only(@Body() dto: CreateEventoAuditoriaDto) {
     return this.svc.list(req.query);
   }
 

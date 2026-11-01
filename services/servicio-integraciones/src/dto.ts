@@ -7,6 +7,7 @@ import {
   Matches, Min, Max, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateAplicacionDto {
   @IsString() @Length(2, 100)
@@ -32,3 +33,4 @@ export class CreateWebhookDto {
 
 }
 
+export class UpdateAplicacionDto extends PartialType(CreateAplicacionDto) {}

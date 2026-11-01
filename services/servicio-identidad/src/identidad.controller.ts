@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { IdentidadService } from './identidad.service';
+import { CreateUsuarioPerfilDto, UpdateUsuarioPerfilDto } from './dto';
 
 @ApiTags('identidad')
 @ApiBearerAuth()
@@ -27,7 +28,7 @@ export class IdentidadController {
 
   @Post('')
   @ApiOperation({ summary: 'Crea o actualiza perfil tras JIT provisioning' })
-  async crea_o_actualiza_perfil_tras_jit_provisioning(@Body() dto: any) {
+  async crea_o_actualiza_perfil_tras_jit_provisioning(@Body() dto: CreateUsuarioPerfilDto) {
     return this.svc.create(dto);
   }
 

@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { AgendaService } from './agenda.service';
+import { CreateCitaDto, UpdateCitaDto } from './dto';
 
 @ApiTags('agenda')
 @ApiBearerAuth()
@@ -21,7 +22,7 @@ export class AgendaController {
 
   @Post('')
   @ApiOperation({ summary: 'Reserva una cita (inicia SEQ-01)' })
-  async reserva_una_cita_inicia_seq_01(@Body() dto: any) {
+  async reserva_una_cita_inicia_seq_01(@Body() dto: CreateCitaDto) {
     return this.svc.create(dto);
   }
 

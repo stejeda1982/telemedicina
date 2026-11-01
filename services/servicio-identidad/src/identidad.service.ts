@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { OutboxService } from '@telemed/common';
+import { CreateUsuarioPerfilDto, UpdateUsuarioPerfilDto } from './dto';
 
 // Auto-generated service for servicio-identidad.
 // The usuarioPerfil model is the aggregate root of this service.
 
 @Injectable()
 export class IdentidadService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(query: any) {
     const { skip = 0, take = 50, ...where } = query;
@@ -42,11 +47,19 @@ export class IdentidadService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
-    return this.prisma.usuarioPerfil.create({ data: dto });
+  async create(dto: CreateUsuarioPerfilDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rec = await tx.usuarioPerfil.create({ data: dto });
+      await this.outbox.publish(
+        'telemedicina.usuario.creado.v1',
+        { user_id: rec.user_id, wso2_user_id: rec.wso2_user_id, dominio: rec.dominio },
+        tx,
+      );
+      return rec;
+    });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateUsuarioPerfilDto) {
     return this.prisma.usuarioPerfil.update({
       where: { user_id: id },
       data: dto,

@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { MensajeriaService } from './mensajeria.service';
+import { CreateConversacionDto, UpdateConversacionDto } from './dto';
 
 @ApiTags('mensajeria')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class MensajeriaController {
 
   @Post('conversaciones')
   @ApiOperation({ summary: 'Crea conversación (paciente-profesional)' })
-  async crea_conversacion_paciente_profesional(@Body() dto: any) {
+  async crea_conversacion_paciente_profesional(@Body() dto: CreateConversacionDto) {
     return this.svc.list(req.query);
   }
 

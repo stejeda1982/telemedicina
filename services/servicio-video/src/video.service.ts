@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { OutboxService } from '@telemed/common';
+import { CreateSesionDto, UpdateSesionDto } from './dto';
 
 // Auto-generated service for servicio-video.
 // The sesionVideo model is the aggregate root of this service.
 
 @Injectable()
 export class VideoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(query: any) {
     const { skip = 0, take = 50, ...where } = query;
@@ -42,11 +47,19 @@ export class VideoService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
-    return this.prisma.sesionVideo.create({ data: dto });
+  async create(dto: CreateSesionDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rec = await tx.sesionVideo.create({ data: dto });
+      await this.outbox.publish(
+        'telemedicina.sesion.iniciada.v1',
+        { sesion_id: rec.sesion_id, cita_id: rec.cita_id, grabacion: rec.grabacion },
+        tx,
+      );
+      return rec;
+    });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateSesionDto) {
     return this.prisma.sesionVideo.update({
       where: { sesion_id: id },
       data: dto,

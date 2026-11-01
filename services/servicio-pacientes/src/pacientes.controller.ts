@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { PacientesService } from './pacientes.service';
+import { CreatePacienteDto, UpdatePacienteDto } from './dto';
 
 @ApiTags('pacientes')
 @ApiBearerAuth()
@@ -27,13 +28,13 @@ export class PacientesController {
 
   @Post('')
   @ApiOperation({ summary: 'Crea el perfil clínico del paciente' })
-  async crea_el_perfil_clinico_del_paciente(@Body() dto: any) {
+  async crea_el_perfil_clinico_del_paciente(@Body() dto: CreatePacienteDto) {
     return this.svc.create(dto);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Actualiza datos demográficos' })
-  async actualiza_datos_demograficos(@Param('id') id: string, @Body() dto: any) {
+  async actualiza_datos_demograficos(@Param('id') id: string, @Body() dto: UpdatePacienteDto) {
     return this.svc.update(id, dto);
   }
 

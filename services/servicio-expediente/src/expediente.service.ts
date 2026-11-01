@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { OutboxService } from '@telemed/common';
+import { CreateNotaDto, UpdateNotaDto } from './dto';
 
 // Auto-generated service for servicio-expediente.
 // The notaEvolucion model is the aggregate root of this service.
 
 @Injectable()
 export class ExpedienteService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(query: any) {
     const { skip = 0, take = 50, ...where } = query;
@@ -42,11 +47,19 @@ export class ExpedienteService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
-    return this.prisma.notaEvolucion.create({ data: dto });
+  async create(dto: CreateNotaDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rec = await tx.notaEvolucion.create({ data: dto });
+      await this.outbox.publish(
+        'telemedicina.nota.creada.v1',
+        { nota_id: rec.nota_id, paciente_id: rec.paciente_id, profesional_id: rec.profesional_id },
+        tx,
+      );
+      return rec;
+    });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateNotaDto) {
     return this.prisma.notaEvolucion.update({
       where: { nota_id: id },
       data: dto,

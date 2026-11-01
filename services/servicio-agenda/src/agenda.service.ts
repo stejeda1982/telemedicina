@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { OutboxService } from '@telemed/common';
+import { CreateCitaDto, UpdateCitaDto } from './dto';
 
 // Auto-generated service for servicio-agenda.
 // The cita model is the aggregate root of this service.
@@ -46,7 +47,7 @@ export class AgendaService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
+  async create(dto: CreateCitaDto) {
     return this.prisma.$transaction(async (tx) => {
       const rec = await tx.cita.create({ data: dto });
       await this.outbox.publish(
@@ -58,7 +59,7 @@ export class AgendaService {
     });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateCitaDto) {
     return this.prisma.cita.update({
       where: { cita_id: id },
       data: dto,

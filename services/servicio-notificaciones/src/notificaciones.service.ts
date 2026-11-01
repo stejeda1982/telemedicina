@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { CreateNotificacionDto, UpdateNotificacionDto } from './dto';
 
 // Auto-generated service for servicio-notificaciones.
 // The notificacion model is the aggregate root of this service.
@@ -42,11 +43,11 @@ export class NotificacionesService {
     return this.findByUserId(user.sub);
   }
 
-  async create(dto: any) {
+  async create(dto: CreateNotificacionDto) {
     return this.prisma.notificacion.create({ data: dto });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateNotificacionDto) {
     return this.prisma.notificacion.update({
       where: { notificacion_id: id },
       data: dto,
