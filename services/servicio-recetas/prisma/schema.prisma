@@ -1,0 +1,59 @@
+// Prisma schema for servicio-recetas
+// Database: recetas_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_RECETAS")
+}
+
+model Receta {
+  receta_id       String   @id @default(uuid())
+  paciente_id     String
+  profesional_id  String
+  cita_id         String?
+  estado          String   @default("borrador")
+  es_controlada   Boolean  @default(false)
+  sello_digital   String?
+  cadena_original String?
+  qr_verificacion String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  items           ItemReceta[]
+  firma           FirmaDigital?
+  envios          EnvioReceta[]
+}
+
+model ItemReceta {
+  id          BigInt  @id @default(autoincrement())
+  receta_id   String
+  medicamento String
+  dosis       String
+  frecuencia  String
+  duracion    String
+  receta      Receta @relation(fields: [receta_id], references: [receta_id])
+  @@index([receta_id])
+}
+
+model FirmaDigital {
+  id            BigInt  @id @default(autoincrement())
+  receta_id     String @unique
+  certificado   String
+  algoritmo     String @default("sha256")
+  fecha_firma   DateTime @default(now())
+  receta        Receta @relation(fields: [receta_id], references: [receta_id])
+}
+
+model EnvioReceta {
+  id          BigInt  @id @default(autoincrement())
+  receta_id   String
+  canal       String
+  destino     String
+  estado      String @default("pendiente")
+  enviado_at  DateTime?
+  receta      Receta @relation(fields: [receta_id], references: [receta_id])
+  @@index([receta_id])
+}

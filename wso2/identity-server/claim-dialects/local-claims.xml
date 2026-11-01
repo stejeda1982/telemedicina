@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Local claims clínicos para la plataforma de telemedicina -->
+<LocalClaims>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/curp</ClaimURI>
+    <DisplayName>CURP</DisplayName>
+    <Description>Clave Única de Registro de Población (México)</Description>
+    <DisplayOrder>10</DisplayOrder>
+    <SupportedByDefault>true</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/curp</MappedLocalClaim>
+  </Claim>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/cedula</ClaimURI>
+    <DisplayName>Cédula Profesional</DisplayName>
+    <Description>Cédula profesional validada ante DGP</Description>
+    <DisplayOrder>11</DisplayOrder>
+    <SupportedByDefault>true</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/cedula</MappedLocalClaim>
+  </Claim>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/especialidad</ClaimURI>
+    <DisplayName>Especialidad Médica</DisplayName>
+    <Description>Código de especialidad (SNOMED CT)</Description>
+    <DisplayOrder>12</DisplayOrder>
+    <SupportedByDefault>true</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/especialidad</MappedLocalClaim>
+  </Claim>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/institucion</ClaimURI>
+    <DisplayName>Institución</DisplayName>
+    <Description>Institución de adscripción del profesional</Description>
+    <DisplayOrder>13</DisplayOrder>
+    <SupportedByDefault>true</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/institucion</MappedLocalClaim>
+  </Claim>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/tenant_id</ClaimURI>
+    <DisplayName>Tenant ID</DisplayName>
+    <Description>Identificador de institución (multi-tenant)</Description>
+    <DisplayOrder>14</DisplayOrder>
+    <SupportedByDefault>true</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/tenant_id</MappedLocalClaim>
+  </Claim>
+  <Claim>
+    <ClaimURI>http://telemedicina.mx/claims/consent_token</ClaimURI>
+    <DisplayName>Consent Token</DisplayName>
+    <Description>Referencia al consentimiento SMART on FHIR activo</Description>
+    <DisplayOrder>15</DisplayOrder>
+    <SupportedByDefault>false</SupportedByDefault>
+    <MappedLocalClaim>http://telemedicina.mx/claims/consent_token</MappedLocalClaim>
+  </Claim>
+</LocalClaims>

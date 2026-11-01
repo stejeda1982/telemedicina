@@ -1,0 +1,42 @@
+// Prisma schema for servicio-video
+// Database: video_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_VIDEO")
+}
+
+model SesionVideo {
+  sesion_id    String   @id @default(uuid())
+  cita_id      String   @unique
+  room_token   String
+  estado       String   @default("creada")
+  grabacion    Boolean  @default(false)
+  started_at   DateTime?
+  ended_at     DateTime?
+  created_at   DateTime @default(now())
+  participantes Participante[]
+  marcadores    MarcadorClinico[]
+}
+
+model Participante {
+  id            BigInt  @id @default(autoincrement())
+  sesion_id     String
+  user_id       String
+  rol           String
+  sesion        SesionVideo @relation(fields: [sesion_id], references: [sesion_id])
+  @@index([sesion_id])
+}
+
+model MarcadorClinico {
+  id          BigInt   @id @default(autoincrement())
+  sesion_id   String
+  timestamp   DateTime @default(now())
+  descripcion String
+  sesion      SesionVideo @relation(fields: [sesion_id], references: [sesion_id])
+  @@index([sesion_id])
+}

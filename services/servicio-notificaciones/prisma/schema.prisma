@@ -1,0 +1,54 @@
+// Prisma schema for servicio-notificaciones
+// Database: notificaciones_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_NOTIFICACIONES")
+}
+
+model Notificacion {
+  notificacion_id String   @id @default(uuid())
+  destinatario_id String
+  tipo            String
+  titulo          String
+  cuerpo          String
+  canal           String
+  estado          String   @default("pendiente")
+  correlation_id  String?
+  created_at      DateTime @default(now())
+  intentos        IntentoEnvio[]
+  @@index([destinatario_id, estado])
+}
+
+model IntentoEnvio {
+  id              BigInt  @id @default(autoincrement())
+  notificacion_id String
+  proveedor       String
+  referencia      String?
+  estado          String @default("pendiente")
+  intentado_at    DateTime @default(now())
+  notificacion    Notificacion @relation(fields: [notificacion_id], references: [notificacion_id])
+  @@index([notificacion_id])
+}
+
+model Plantilla {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  asunto    String
+  cuerpo    String
+  canal     String
+  version   Int      @default(1)
+}
+
+model Preferencia {
+  id            BigInt  @id @default(autoincrement())
+  destinatario_id String
+  canal         String
+  tipo          String
+  habilitado    Boolean @default(true)
+  @@index([destinatario_id])
+}

@@ -1,0 +1,75 @@
+// Prisma schema for servicio-pacientes
+// Database: pacientes_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_PACIENTES")
+}
+
+model Paciente {
+  paciente_id   String   @id @default(uuid())
+  user_id       String   @unique
+  curp          String   @unique
+  rfc           String?
+  nombres       String
+  apellido_p    String
+  apellido_m    String?
+  fecha_nac     DateTime
+  sexo          String
+  telefono      String
+  email         String
+  idioma        String   @default("es-MX")
+  tenant_id     String   @default("default")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  antecedentes  Antecedente[]
+  representantes Representante[]
+  coberturas    Cobertura[]
+  consentimientos Consentimiento[]
+  @@index([tenant_id])
+}
+
+model Antecedente {
+  id          BigInt  @id @default(autoincrement())
+  paciente_id String
+  tipo        String
+  descripcion String
+  paciente    Paciente @relation(fields: [paciente_id], references: [paciente_id])
+  @@index([paciente_id])
+}
+
+model Representante {
+  id            BigInt  @id @default(autoincrement())
+  paciente_id   String
+  nombres       String
+  relacion      String
+  telefono      String
+  paciente      Paciente @relation(fields: [paciente_id], references: [paciente_id])
+  @@index([paciente_id])
+}
+
+model Cobertura {
+  id          BigInt  @id @default(autoincrement())
+  paciente_id String
+  tipo        String
+  numero      String
+  vigente     Boolean @default(true)
+  paciente    Paciente @relation(fields: [paciente_id], references: [paciente_id])
+  @@index([paciente_id])
+}
+
+model Consentimiento {
+  id           BigInt   @id @default(autoincrement())
+  paciente_id  String
+  tipo         String
+  plantilla_id String
+  firma_hash   String
+  otorgado     Boolean  @default(true)
+  created_at   DateTime @default(now())
+  paciente     Paciente @relation(fields: [paciente_id], references: [paciente_id])
+  @@index([paciente_id])
+}

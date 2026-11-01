@@ -1,0 +1,92 @@
+version: "3.9"
+
+# Local development infrastructure for the Telemedicina platform.
+# Brings up: PostgreSQL (with 12 databases), Redis, NATS JetStream,
+# WSO2 Identity Server, WSO2 API Manager, WSO2 Micro Integrator.
+#
+# Usage: docker compose -f infra/docker-compose.yml up -d
+# Stop:  docker compose -f infra/docker-compose.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: telemed-postgres
+    environment:
+      POSTGRES_USER: telemed
+      POSTGRES_PASSWORD: telemed
+      POSTGRES_MULTIPLE_DATABASES: ${DBS:-identidad_db,pacientes_db,profesionales_db,agenda_db,video_db,expediente_db,recetas_db,pagos_db,mensajeria_db,notificaciones_db,integraciones_db,auditoria_db}
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemed"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: telemed-redis
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: telemed-nats
+    command: ["-js", "-m", "8222"]
+    ports: ["4222:4222", "8222:8222"]
+    volumes: [nats_data:/data]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  wso2-is:
+    image: wso2/wso2is:7.0.0
+    container_name: telemed-wso2-is
+    ports: ["9443:9443"]
+    volumes:
+      - ./wso2/identity-server/repository/deployment/server:/home/wso2carbon/wso2is-7.0.0/repository/deployment/server
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:9443/carbon/admin/login.jsp"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  wso2-apim:
+    image: wso2/wso2am:4.4.0
+    container_name: telemed-wso2-apim
+    ports: ["8243:8243", "9444:9444", "8081:8081"]
+    volumes:
+      - ./wso2/api-manager/repository/deployment/server:/home/wso2carbon/wso2am-4.4.0/repository/deployment/server
+    depends_on: [wso2-is]
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:9444/carbon/admin/login.jsp"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  wso2-mi:
+    image: wso2/wso2mi:4.3.0
+    container_name: telemed-wso2-mi
+    ports: ["8290:8290", "8253:8253"]
+    volumes:
+      - ./wso2/micro-integrator/repository/deployment/server:/home/wso2carbon/wso2mi-4.3.0/repository/deployment/server
+    depends_on: [postgres, nats]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8290/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:

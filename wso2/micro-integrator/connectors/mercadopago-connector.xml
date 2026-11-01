@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mercado Pago connector template for outbound calls from WSO2 MI -->
+<template xmlns="http://ws.apache.org/ns/synapse" name="mercadopago-connector">
+  <parameter name="method"/>
+  <parameter name="path"/>
+  <parameter name="payload"/>
+  <sequence>
+    <call>
+      <endpoint>
+        <http uri-template="https://api.mercadopago.com{$ctx:path}" method="{$ctx:method}"/>
+      </endpoint>
+    </call>
+    <!-- Auth header injected from secret -->
+    <property name="Authorization" value="Bearer ${MP_ACCESS_TOKEN}" scope="transport"/>
+  </sequence>
+</template>

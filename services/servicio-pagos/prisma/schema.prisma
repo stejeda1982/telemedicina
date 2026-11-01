@@ -1,0 +1,64 @@
+// Prisma schema for servicio-pagos
+// Database: pagos_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_PAGOS")
+}
+
+model Transaccion {
+  transaccion_id  String   @id @default(uuid())
+  cita_id         String
+  paciente_id     String
+  monto           Decimal  @db.Decimal(10, 2)
+  moneda          String   @default("MXN")
+  metodo          String
+  estado          String   @default("pendiente")
+  stripe_intent   String?
+  mp_preference   String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  capturas        Captura[]
+  reembolsos      Reembolso[]
+  facturas        FacturaCfdi[]
+  @@index([cita_id])
+  @@index([paciente_id])
+}
+
+model Captura {
+  id              BigInt  @id @default(autoincrement())
+  transaccion_id  String
+  referencia      String
+  monto           Decimal @db.Decimal(10, 2)
+  capturado_at    DateTime @default(now())
+  transaccion     Transaccion @relation(fields: [transaccion_id], references: [transaccion_id])
+  @@index([transaccion_id])
+}
+
+model Reembolso {
+  id              BigInt  @id @default(autoincrement())
+  transaccion_id  String
+  referencia      String
+  monto           Decimal @db.Decimal(10, 2)
+  motivo          String
+  reembolsado_at  DateTime @default(now())
+  transaccion     Transaccion @relation(fields: [transaccion_id], references: [transaccion_id])
+  @@index([transaccion_id])
+}
+
+model FacturaCfdi {
+  id              BigInt  @id @default(autoincrement())
+  transaccion_id  String
+  uuid_fiscal     String
+  sello           String
+  cadena_original String
+  xml_url         String
+  pdf_url         String
+  generado_at     DateTime @default(now())
+  transaccion     Transaccion @relation(fields: [transaccion_id], references: [transaccion_id])
+  @@index([transaccion_id])
+}

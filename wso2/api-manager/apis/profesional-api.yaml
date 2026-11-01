@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Profesional API
+  version: '1.0.0'
+  description: API expuesta vía WSO2 API Manager para la plataforma de telemedicina.
+servers:
+  - url: https://api.telemedicina.mx/profesional/1.0.0
+security:
+  - bearerAuth: []
+paths:
+  '/{id}':
+    get:
+      operationId: id
+      summary: GET /{id}
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/':
+    get:
+      operationId: 
+      summary: GET /
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}/verificar':
+    post:
+      operationId: id_verificar
+      summary: POST /{id}/verificar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}/disponibilidad':
+    get:
+      operationId: id_disponibilidad
+      summary: GET /{id}/disponibilidad
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token issued by WSO2 Identity Server
+x-wso2-production-endpoints:
+  urls:
+    - http://wso2-mi:8290/profesional
+x-wso2-cors:
+  accessControlAllowOrigins: ['*']
+  accessControlAllowHeaders: ['authorization', 'Content-Type', 'X-Correlation-Id']
+  accessControlAllowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']

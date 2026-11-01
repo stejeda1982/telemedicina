@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ServiceProvider>
+  <ApplicationName>bff-paciente</ApplicationName>
+  <Description>BFF para el frontend de pacientes</Description>
+  <InboundAuthenticationConfig>
+    <InboundAuthenticationRequestConfigs>
+      <InboundAuthenticationRequestConfig>
+        <InboundAuthType>oauth2</InboundAuthType>
+        <InboundAuthTypeDisplayName>OAuth2</InboundAuthTypeDisplayName>
+        <InboundAuthKey>bff_paciente_client_id</InboundAuthKey>
+        <Properties>
+          <Property><Name>oauthConsumerSecret</Name><Value>CHANGE_ME_IN_PRODUCTION</Value></Property>
+        </Properties>
+      </InboundAuthenticationRequestConfig>
+    </InboundAuthenticationRequestConfigs>
+  </InboundAuthenticationConfig>
+  <LocalAndOutBoundAuthenticationConfig>
+    <AuthenticationSteps>
+      <AuthenticationStep>
+        <StepOrder>1</StepOrder>
+        <LocalAuthenticatorConfigs>
+          <LocalAuthenticatorConfig>
+            <Name>BasicAuthenticator</Name>
+            <DisplayName>basic</DisplayName>
+          </LocalAuthenticatorConfig>
+        </LocalAuthenticatorConfigs>
+        <SubjectIdentifier>firstStep</SubjectIdentifier>
+      </AuthenticationStep>
+    </AuthenticationSteps>
+    <AuthenticationType>StepBasedAuthentication</AuthenticationType>
+    <SubjectClaimUri>http://telemedicina.mx/claims/curp</SubjectClaimUri>
+  </LocalAndOutBoundAuthenticationConfig>
+  <ClaimConfig>
+    <Dialect>LOCAL</Dialect>
+    <ClaimMappings>
+      <ClaimMapping>
+        <LocalClaimURI>http://telemedicina.mx/claims/curp</LocalClaimURI>
+        <RemoteClaimURI>http://telemedicina.mx/claims/curp</RemoteClaimURI>
+      </ClaimMapping>
+      <ClaimMapping>
+        <LocalClaimURI>http://wso2.org/claims/role</LocalClaimURI>
+        <RemoteClaimURI>role</RemoteClaimURI>
+      </ClaimMapping>
+      <ClaimMapping>
+        <LocalClaimURI>http://telemedicina.mx/claims/tenant_id</LocalClaimURI>
+        <RemoteClaimURI>tenant_id</RemoteClaimURI>
+      </ClaimMapping>
+    </ClaimMappings>
+  </ClaimConfig>
+  <RequestPathAuthenticatorConfigs/>
+  <PermissionAndRoleConfig/>
+</ServiceProvider>

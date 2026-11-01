@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Default threat protection policy applied to all published APIs -->
+<ThreatProtectionConfig>
+  <MaxPayloadSize>1048576</MaxPayloadSize>
+  <MaxXMLDepth>100</MaxXMLDepth>
+  <MaxJSONDepth>100</MaxJSONDepth>
+  <MaxStringLength>10000</MaxStringLength>
+  <MaxArrayElementCount>1000</MaxArrayElementCount>
+  <MaxAttributeCountPerElement>50</MaxAttributeCountPerElement>
+  <SchemaValidation>true</SchemaValidation>
+  <AllowedContentTypes>
+    <ContentType>application/json</ContentType>
+    <ContentType>application/x-www-form-urlencoded</ContentType>
+  </AllowedContentTypes>
+</ThreatProtectionConfig>

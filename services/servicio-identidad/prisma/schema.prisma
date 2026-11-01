@@ -1,0 +1,42 @@
+// Prisma schema for servicio-identidad
+// Database: identidad_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_IDENTIDAD")
+}
+
+model UsuarioPerfil {
+  user_id      String   @id @default(uuid())
+  wso2_user_id String   @unique
+  dominio      String
+  email        String   @unique
+  telefono     String?
+  estado       String   @default("activo")
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  claims       UsuarioClaim[]
+}
+
+model UsuarioClaim {
+  id         BigInt  @id @default(autoincrement())
+  user_id    String
+  claim_type String
+  claim_value String
+  usuario    UsuarioPerfil @relation(fields: [user_id], references: [user_id])
+  @@index([user_id])
+}
+
+model SesionHistorica {
+  id         BigInt   @id @default(autoincrement())
+  user_id    String
+  ip         String
+  user_agent String
+  exito      Boolean
+  created_at DateTime @default(now())
+  @@index([user_id])
+}

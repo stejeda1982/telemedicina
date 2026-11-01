@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wso2-mi
+  namespace: wso2
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: wso2-mi } }
+  template:
+    metadata: { labels: { app: wso2-mi } }
+    spec:
+      containers:
+        - name: wso2-mi
+          image: wso2/wso2mi:4.3.0
+          ports:
+            - { containerPort: 8290, name: http }
+            - { containerPort: 8253, name: https }
+          volumeMounts:
+            - { name: sequences, mountPath: /home/wso2carbon/wso2mi-4.3.0/repository/deployment/server/synapse-configs/default }
+          readinessProbe:
+            httpGet: { path: /health, port: 8290 }
+            periodSeconds: 30
+      volumes:
+        - name: sequences
+          configMap: { name: wso2-mi-sequences }

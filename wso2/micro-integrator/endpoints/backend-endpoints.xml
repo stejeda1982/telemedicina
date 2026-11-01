@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<endpoints>
+  <!-- Internal microservice endpoints (Kubernetes DNS) -->
+  <endpoint name="identidad">
+    <http uri-template="http://servicio-identidad.core.svc.cluster.local:3001/api/v1/identidad" method="GET"/>
+  </endpoint>
+  <endpoint name="pacientes">
+    <http uri-template="http://servicio-pacientes.core.svc.cluster.local:3002/api/v1/pacientes" method="GET"/>
+  </endpoint>
+  <endpoint name="profesionales">
+    <http uri-template="http://servicio-profesionales.core.svc.cluster.local:3003/api/v1/profesionales" method="GET"/>
+  </endpoint>
+  <endpoint name="agenda">
+    <http uri-template="http://servicio-agenda.core.svc.cluster.local:3004/api/v1/agenda" method="GET"/>
+  </endpoint>
+  <endpoint name="video">
+    <http uri-template="http://servicio-video.core.svc.cluster.local:3005/api/v1/video" method="GET"/>
+  </endpoint>
+  <endpoint name="expediente">
+    <http uri-template="http://servicio-expediente.core.svc.cluster.local:3006/api/v1/expediente" method="GET"/>
+  </endpoint>
+  <endpoint name="recetas">
+    <http uri-template="http://servicio-recetas.core.svc.cluster.local:3007/api/v1/recetas" method="GET"/>
+  </endpoint>
+  <endpoint name="pagos">
+    <http uri-template="http://servicio-pagos.core.svc.cluster.local:3008/api/v1/pagos" method="GET"/>
+  </endpoint>
+  <endpoint name="mensajeria">
+    <http uri-template="http://servicio-mensajeria.core.svc.cluster.local:3009/api/v1/mensajeria" method="GET"/>
+  </endpoint>
+  <endpoint name="notificaciones">
+    <http uri-template="http://servicio-notificaciones.core.svc.cluster.local:3010/api/v1/notificaciones" method="GET"/>
+  </endpoint>
+  <endpoint name="integraciones">
+    <http uri-template="http://servicio-integraciones.core.svc.cluster.local:3011/api/v1/integraciones" method="GET"/>
+  </endpoint>
+  <endpoint name="auditoria">
+    <http uri-template="http://servicio-auditoria.core.svc.cluster.local:3012/api/v1/auditoria" method="GET"/>
+  </endpoint>
+</endpoints>

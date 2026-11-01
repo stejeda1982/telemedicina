@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: telemedicina-ingress
+  namespace: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+spec:
+  tls:
+    - hosts: [api.telemedicina.mx, developers.telemedicina.mx]
+      secretName: telemedicina-tls
+  rules:
+    - host: api.telemedicina.mx
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wso2-apim-gateway
+                port: { number: 8243 }
+    - host: developers.telemedicina.mx
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wso2-apim-devportal
+                port: { number: 9444 }

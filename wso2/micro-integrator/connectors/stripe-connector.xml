@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Stripe connector template for outbound calls from WSO2 MI -->
+<template xmlns="http://ws.apache.org/ns/synapse" name="stripe-connector">
+  <parameter name="method"/>
+  <parameter name="path"/>
+  <parameter name="payload"/>
+  <sequence>
+    <call>
+      <endpoint>
+        <http uri-template="https://api.stripe.com{$ctx:path}" method="{$ctx:method}"/>
+      </endpoint>
+    </call>
+    <!-- Auth header injected from secret -->
+    <property name="Authorization" value="Bearer ${STRIPE_SECRET_KEY}" scope="transport"/>
+  </sequence>
+</template>

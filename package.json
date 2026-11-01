@@ -1,0 +1,20 @@
+{
+  "name": "telemedicina-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma de Telemedicina - Monorepo (12 microservicios + 3 BFF + WSO2)",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "dev:infra": "docker compose -f infra/docker-compose.yml up -d",
+    "dev:services": "pnpm -r --filter ./services/* run start:dev",
+    "prisma:generate": "pnpm -r --filter ./services/* exec prisma generate",
+    "prisma:migrate": "pnpm -r --filter ./services/* exec prisma migrate dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": { "node": ">=20.0.0", "pnpm": ">=9.0.0" }
+}

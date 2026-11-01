@@ -1,0 +1,55 @@
+// Prisma schema for servicio-agenda
+// Database: agenda_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_AGENDA")
+}
+
+model Cita {
+  cita_id         String   @id @default(uuid())
+  paciente_id     String
+  profesional_id  String
+  tipo_consulta   String
+  estado          String   @default("reservada")
+  fecha_hora      DateTime
+  duracion_min    Int      @default(30)
+  pago_id         String?
+  video_sesion_id String?
+  tenant_id       String   @default("default")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  @@index([paciente_id])
+  @@index([profesional_id])
+  @@index([estado])
+  @@index([tenant_id])
+}
+
+model Slot {
+  slot_id        String   @id @default(uuid())
+  profesional_id String
+  fecha_hora     DateTime
+  duracion_min   Int
+  disponible     Boolean  @default(true)
+  @@index([profesional_id, fecha_hora])
+}
+
+model SalaEspera {
+  id         BigInt   @id @default(autoincrement())
+  cita_id    String
+  paciente_id String
+  estado     String @default("en_espera")
+  ingreso    DateTime @default(now())
+  @@index([cita_id])
+}
+
+model PoliticaCancelacion {
+  id            BigInt  @id @default(autoincrement())
+  tipo_consulta String
+  horas_minimas Int
+  reembolso_pct Decimal @db.Decimal(5, 2)
+}

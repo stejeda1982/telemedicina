@@ -1,78 +1,182 @@
-# Telemedicina
+# Plataforma de Telemedicina
 
-Repositorio del proyecto de plataforma de telemedicina.
+Monorepo de la plataforma de telemedicina — 12 microservicios NestJS,
+3 BFF, capa WSO2 (Identity Server + API Manager + Micro Integrator),
+infraestructura local con Docker Compose y manifiestos Kubernetes.
+
+## Estructura
+
+```
+.
+├── docs/                          # Documentos de análisis, requisitos y diseño técnico
+├── packages/
+│   └── contracts/                 # @telemed/contracts: 20 CloudEvents tipados + NATS subjects
+├── services/                      # 12 microservicios NestJS
+│   ├── servicio-identidad/        # Puente con WSO2 IS (SCIM)
+│   ├── servicio-pacientes/        # Perfil demográfico y consentimientos
+│   ├── servicio-profesionales/    # Profesionales, cédula, especialidades
+│   ├── servicio-agenda/           # Citas y slots
+│   ├── servicio-video/            # Sesiones WebRTC con mediasoup
+│   ├── servicio-expediente/       # Expediente clínico NOM-024
+│   ├── servicio-recetas/          # Recetas con e.firma
+│   ├── servicio-pagos/            # Stripe/MP + CFDI 4.0
+│   ├── servicio-mensajeria/       # Chat paciente-médico e interconsultas
+│   ├── servicio-notificaciones/   # Multi-canal (push/SMS/WhatsApp/email)
+│   ├── servicio-integraciones/    # FHIR R4 + HL7 v2 + SMART on FHIR
+│   └── servicio-auditoria/        # Bitácora inmutable con hash encadenado
+├── bff/                           # 3 Backend-for-Frontend NestJS
+│   ├── bff-paciente/              # API para frontend de pacientes
+│   ├── bff-profesional/           # API para frontend de profesionales
+│   └── bff-admin/                 # API para portal administrativo
+├── wso2/
+│   ├── identity-server/           # IdP: claims, SPs, IdPs federados, scripts adaptativos
+│   ├── api-manager/               # 9 OpenAPI YAMLs + políticas de threat protection
+│   └── micro-integrator/          # 8 secuencias SEQ-01 a SEQ-08 + conectores externos
+├── infra/
+│   ├── docker-compose.yml         # PostgreSQL, Redis, NATS, WSO2 IS/APIM/MI
+│   ├── postgres-init/             # Script de creación de las 12 bases
+│   └── k8s/                       # Namespaces, NetworkPolicies, deployments
+├── .github/workflows/ci.yml       # CI: build, lint, Docker images por servicio
+├── package.json                   # Workspace pnpm
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+└── .env.example                   # Variables de entorno (copia a .env)
+```
 
 ## Documentación
 
-### 01. Análisis y Requisitos (v1.0 — borrador para revisión)
+- `docs/01-analisis-requisitos/` — Análisis y requisitos v1.0 (47 páginas, docx + pdf)
+- `docs/02-diseno-tecnico/` — Diseño técnico v1.0 (48 páginas, docx + pdf)
 
-- `docs/01-analisis-requisitos/Telemedicina_Documento_Analisis_Requisitos_v1.0.docx` — documento Word editable
-- `docs/01-analisis-requisitos/Telemedicina_Documento_Analisis_Requisitos_v1.0.pdf` — versión PDF para distribución
+## Requisitos
 
-**Resumen del contenido:**
+- Node.js 20+
+- pnpm 9+
+- Docker y Docker Compose
+- (Opcional) kubectl y un clúster Kubernetes para despliegue
 
-1. Resumen ejecutivo
-2. Introducción y contexto (referencia: Hospital Virtual de México)
-3. Análisis de mercado y benchmark
-4. Marco regulatorio (NOM-024-SSA3-2012, HIPAA, RGPD, ISO/IEC)
-5. Stakeholders y 15 casos de uso críticos (UC-01 a UC-15)
-6. Requisitos funcionales por módulo (11 módulos, ~80 requisitos)
-7. Requisitos no funcionales (15 RNF)
-8. Arquitectura tecnológica (microservicios NestJS + React + PostgreSQL + WebRTC)
-9. Modelo de negocio y estrategia comercial
-10. Matriz de riesgos (15 riesgos clasificados)
-11. Roadmap por fases (Fase 0 a Fase 4, ~44 semanas)
-12. Equipo, metodología y estándares de calidad
-13. KPIs e indicadores de éxito
-14. Conclusiones y próximos pasos
-15. Anexo A: Matriz de trazabilidad de requisitos
-16. Anexo B: Glosario y referencias
+## Inicio rápido (desarrollo local)
 
-### 02. Diseño Técnico (v1.0 — borrador para revisión)
+```bash
+# 1. Instalar dependencias del monorepo
+pnpm install
 
-- `docs/02-diseno-tecnico/Telemedicina_Documento_Diseno_Tecnico_v1.0.docx` — documento Word editable
-- `docs/02-diseno-tecnico/Telemedicina_Documento_Diseno_Tecnico_v1.0.pdf` — versión PDF para distribución (48 páginas)
+# 2. Levantar infraestructura (Postgres, Redis, NATS, WSO2)
+cp .env.example .env
+docker compose -f infra/docker-compose.yml up -d
 
-**Decisiones clave del diseño:**
+# 3. Generar cliente Prisma y aplicar migraciones en cada servicio
+pnpm -r --filter './services/*' exec prisma generate
+pnpm -r --filter './services/*' exec prisma migrate dev
 
-- **WSO2 Identity Server** como proveedor de identidad centralizado (OIDC, SAML 2.0, SCIM 2.0, MFA TOTP/FIDO2, federación institucional, consentimiento SMART on FHIR).
-- **WSO2 API Manager** como gateway único de acceso público (validación JWT, throttling por tiers, threat protection, portal de developers).
-- **WSO2 Micro Integrator** como orquestador de integración por servicios (sagas coordinadas, agregadores, conectores externos Stripe/MP/PAC-SAT/WhatsApp/Twilio/FHIR).
+# 4. Levantar los microservicios (en terminales separadas o con turbo)
+pnpm --filter @telemed/servicio-pacientes start:dev
+pnpm --filter @telemed/servicio-agenda start:dev
+# ... o todos a la vez:
+pnpm -r --filter './services/*' run start:dev
+```
 
-**Resumen del contenido (15 secciones + 2 anexos):**
+Cada servicio expone:
+- API REST en `http://localhost:<port>/api/v1/<service>`
+- Swagger UI en `http://localhost:<port>/docs`
+- Health check público en `http://localhost:<port>/api/v1/<service>/health`
 
-1. Resumen ejecutivo
-2. Introducción y propósito del documento
-3. Decisiones arquitectónicas (7 ADRs)
-4. Visión arquitectónica (C4 niveles 1 y 2, topología de red)
-5. WSO2 Identity Server (modelo de identidad, federación, MFA, SCIM, consentimiento)
-6. WSO2 API Manager (componentes, catálogo de APIs, throttling, dev portal)
-7. WSO2 Micro Integrator (orquestación, patrones, secuencias SEQ-01 a SEQ-08, conectores)
-8. Catálogo de 12 microservicios de dominio
-9. Modelo de datos por servicio + mapeo FHIR R4
-10. Comunicación y eventos (NATS JetStream, CloudEvents, outbox, saga, idempotencia)
-11. Diagramas de secuencia de flujos críticos (SEQ-01, SEQ-04, SEQ-05, SEQ-07)
-12. Seguridad aplicada (defensa en profundidad, secretos, cifrado, auditoría)
-13. Infraestructura y despliegue (Kubernetes, namespaces, GitOps, multi-región)
-14. Observabilidad (logs, métricas, trazas, dashboards)
-15. Plan de despliegue por fases (Fase 0 a Fase 4)
-16. Riesgos técnicos (12 riesgos RT-01 a RT-12)
-17. Anexo A: Catálogo de APIs públicas
-18. Anexo B: Glosario y referencias técnicas
+## Puertos por servicio
 
-## Estado
+| Servicio | Puerto |
+|---|---|
+| servicio-identidad | 3001 |
+| servicio-pacientes | 3002 |
+| servicio-profesionales | 3003 |
+| servicio-agenda | 3004 |
+| servicio-video | 3005 |
+| servicio-expediente | 3006 |
+| servicio-recetas | 3007 |
+| servicio-pagos | 3008 |
+| servicio-mensajeria | 3009 |
+| servicio-notificaciones | 3010 |
+| servicio-integraciones | 3011 |
+| servicio-auditoria | 3012 |
+| bff-paciente | 4001 |
+| bff-profesional | 4002 |
+| bff-admin | 4003 |
 
-- Repositorio inicializado y conectado a `github.com/stejeda1982/telemedicina`.
-- Rama principal: `main`.
-- Entregables hasta la fecha:
-  - 01. Documento de análisis y requisitos v1.0 (borrador para revisión).
-  - 02. Documento de diseño técnico v1.0 (borrador para revisión, arquitectura con WSO2).
+## Infraestructura local
 
-## Próximos pasos
+| Servicio | Puerto | Descripción |
+|---|---|---|
+| PostgreSQL 16 | 5432 | 12 bases (una por microservicio) |
+| Redis 7 | 6379 | Cache, sesiones, colas |
+| NATS JetStream | 4222 / 8222 | Bus de eventos CloudEvents |
+| WSO2 Identity Server | 9443 | IdP OIDC/SAML/SCIM |
+| WSO2 API Manager | 8243 / 9444 / 8081 | Gateway + Publisher + Dev Portal |
+| WSO2 Micro Integrator | 8290 | Orquestador (8 secuencias) |
 
-- Revisión de los documentos 01 y 02 por el equipo técnico y de producto.
-- Definición del patrocinador del proyecto y del equipo de la Fase 0.
-- Contratación de BAA con el cloud provider.
-- Selección de asesoría legal especializada en salud digital.
-- Validación de la licencia WSO2 (open source vs enterprise) y capacición del equipo.
+## Capa WSO2
 
+### Identity Server (IdP)
+- 6 claims clínicos locales (CURP, cédula, especialidad, institución, tenant_id, consent_token)
+- Service Provider para BFF Paciente (configurable para BFF Profesional/Admin)
+- Identity Provider federado SAML 2.0 (ejemplo: Hospital ADFS)
+- Scripts adaptativos: step-up MFA para recetas controladas, JIT para profesionales federados
+- Federación OIDC y SCIM 2.0 provisioning
+
+### API Manager (Gateway)
+- 9 APIs publicadas (paciente, profesional, video, receta, pago, mensaje, fhir, admin, webhooks)
+- Tier Bronze/Silver/Gold/Platinum con rate-limiting
+- Threat protection: payload 1 MB, profundidad JSON 100, schema validation
+- Dev Portal en `developers.telemedicina.mx`
+
+### Micro Integrator (Orquestador)
+- 8 secuencias de mediación (SEQ-01 a SEQ-08) con patrón saga coordinada
+- Conectores externos: Stripe, Mercado Pago, PAC-SAT, WhatsApp Cloud, FHIR R4
+- Endpoints internos apuntando a los 12 microservicios
+- Estado de saga persistido en MySQL dedicado del namespace wso2
+
+## Eventos CloudEvents (NATS JetStream)
+
+20 eventos tipados en `packages/contracts/src/events.ts`:
+
+- EVT-01 a EVT-05: identidad y pacientes
+- EVT-06 a EVT-10: agenda y citas
+- EVT-11 a EVT-12: videoconsulta
+- EVT-13 a EVT-15: expediente y recetas
+- EVT-16 a EVT-18: pagos y CFDI
+- EVT-19 a EVT-20: notificaciones y alertas
+
+Cada evento sigue la especificación CloudEvents 1.0 con los campos
+`specversion`, `id`, `source`, `type`, `time`, `data` y la extensión
+`correlation_id` para trazabilidad distribuida.
+
+## Seguridad
+
+- Validación de JWT firmados por WSO2 IS vía JWKS en cada microservicio
+- Interceptor `CorrelationIdInterceptor` propaga `X-Correlation-Id` de extremo a extremo
+- Multi-tenant con `tenant_id` propagado como claim del JWT
+- MFA obligatoria para profesionales y administradores
+- Cifrado AES-256 en reposo, TLS 1.3 en tránsito
+- Auditoría inmutable con hash encadenado en `servicio-auditoria`
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`):
+- Build y lint por servicio (matriz de 12 servicios + 3 BFF)
+- Build de imágenes Docker y push a GHCR en merges a `main`
+- Imágenes taggueadas con el commit SHA para trazabilidad
+
+## Roadmap de implementación
+
+Este monorepo corresponde a la Fase 0/1 del roadmap del TDD:
+- ✅ Estructura del monorepo y scaffolding de servicios
+- ✅ Modelos de datos Prisma por servicio
+- ✅ Capa WSO2 (configs + secuencias skeleton)
+- ✅ Infraestructura local con Docker Compose
+- ✅ Manifiestos Kubernetes + NetworkPolicies
+- 🚧 Implementación completa de cada endpoint (en progreso)
+- 🚧 Tests unitarios y de integración
+- 🚧 Sequences de mediación WSO2 MI en producción
+- 📋 Despliegue productivo multi-región (Fase 3+)
+
+## Licencia
+
+Propietaria. Confidencial.

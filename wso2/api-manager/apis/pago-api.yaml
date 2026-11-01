@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Pago API
+  version: '1.0.0'
+  description: API expuesta vía WSO2 API Manager para la plataforma de telemedicina.
+servers:
+  - url: https://api.telemedicina.mx/pago/1.0.0
+security:
+  - bearerAuth: []
+paths:
+  '/':
+    post:
+      operationId: 
+      summary: POST /
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}/capturar':
+    post:
+      operationId: id_capturar
+      summary: POST /{id}/capturar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}/reembolsar':
+    post:
+      operationId: id_reembolsar
+      summary: POST /{id}/reembolsar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}':
+    get:
+      operationId: id
+      summary: GET /{id}
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token issued by WSO2 Identity Server
+x-wso2-production-endpoints:
+  urls:
+    - http://wso2-mi:8290/pago
+x-wso2-cors:
+  accessControlAllowOrigins: ['*']
+  accessControlAllowHeaders: ['authorization', 'Content-Type', 'X-Correlation-Id']
+  accessControlAllowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']

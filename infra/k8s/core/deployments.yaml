@@ -1,0 +1,528 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-identidad
+  namespace: core
+  labels: { service: identidad, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: identidad }
+  template:
+    metadata:
+      labels: { service: identidad }
+    spec:
+      containers:
+        - name: identidad
+          image: ghcr.io/stejeda1982/telemedicina/servicio-identidad:1.0.0
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - secretRef: { name: servicio-identidad-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/identidad/health, port: 3001 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/identidad/health, port: 3001 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-identidad
+  namespace: core
+spec:
+  selector: { service: identidad }
+  ports:
+    - port: 3001
+      targetPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-pacientes
+  namespace: core
+  labels: { service: pacientes, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: pacientes }
+  template:
+    metadata:
+      labels: { service: pacientes }
+    spec:
+      containers:
+        - name: pacientes
+          image: ghcr.io/stejeda1982/telemedicina/servicio-pacientes:1.0.0
+          ports:
+            - containerPort: 3002
+          envFrom:
+            - secretRef: { name: servicio-pacientes-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/pacientes/health, port: 3002 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/pacientes/health, port: 3002 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-pacientes
+  namespace: core
+spec:
+  selector: { service: pacientes }
+  ports:
+    - port: 3002
+      targetPort: 3002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-profesionales
+  namespace: core
+  labels: { service: profesionales, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: profesionales }
+  template:
+    metadata:
+      labels: { service: profesionales }
+    spec:
+      containers:
+        - name: profesionales
+          image: ghcr.io/stejeda1982/telemedicina/servicio-profesionales:1.0.0
+          ports:
+            - containerPort: 3003
+          envFrom:
+            - secretRef: { name: servicio-profesionales-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/profesionales/health, port: 3003 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/profesionales/health, port: 3003 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-profesionales
+  namespace: core
+spec:
+  selector: { service: profesionales }
+  ports:
+    - port: 3003
+      targetPort: 3003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-agenda
+  namespace: core
+  labels: { service: agenda, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: agenda }
+  template:
+    metadata:
+      labels: { service: agenda }
+    spec:
+      containers:
+        - name: agenda
+          image: ghcr.io/stejeda1982/telemedicina/servicio-agenda:1.0.0
+          ports:
+            - containerPort: 3004
+          envFrom:
+            - secretRef: { name: servicio-agenda-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/agenda/health, port: 3004 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/agenda/health, port: 3004 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-agenda
+  namespace: core
+spec:
+  selector: { service: agenda }
+  ports:
+    - port: 3004
+      targetPort: 3004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-video
+  namespace: core
+  labels: { service: video, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: video }
+  template:
+    metadata:
+      labels: { service: video }
+    spec:
+      containers:
+        - name: video
+          image: ghcr.io/stejeda1982/telemedicina/servicio-video:1.0.0
+          ports:
+            - containerPort: 3005
+          envFrom:
+            - secretRef: { name: servicio-video-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/video/health, port: 3005 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/video/health, port: 3005 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-video
+  namespace: core
+spec:
+  selector: { service: video }
+  ports:
+    - port: 3005
+      targetPort: 3005
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-expediente
+  namespace: core
+  labels: { service: expediente, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: expediente }
+  template:
+    metadata:
+      labels: { service: expediente }
+    spec:
+      containers:
+        - name: expediente
+          image: ghcr.io/stejeda1982/telemedicina/servicio-expediente:1.0.0
+          ports:
+            - containerPort: 3006
+          envFrom:
+            - secretRef: { name: servicio-expediente-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/expediente/health, port: 3006 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/expediente/health, port: 3006 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-expediente
+  namespace: core
+spec:
+  selector: { service: expediente }
+  ports:
+    - port: 3006
+      targetPort: 3006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-recetas
+  namespace: core
+  labels: { service: recetas, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: recetas }
+  template:
+    metadata:
+      labels: { service: recetas }
+    spec:
+      containers:
+        - name: recetas
+          image: ghcr.io/stejeda1982/telemedicina/servicio-recetas:1.0.0
+          ports:
+            - containerPort: 3007
+          envFrom:
+            - secretRef: { name: servicio-recetas-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/recetas/health, port: 3007 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/recetas/health, port: 3007 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-recetas
+  namespace: core
+spec:
+  selector: { service: recetas }
+  ports:
+    - port: 3007
+      targetPort: 3007
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-pagos
+  namespace: core
+  labels: { service: pagos, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: pagos }
+  template:
+    metadata:
+      labels: { service: pagos }
+    spec:
+      containers:
+        - name: pagos
+          image: ghcr.io/stejeda1982/telemedicina/servicio-pagos:1.0.0
+          ports:
+            - containerPort: 3008
+          envFrom:
+            - secretRef: { name: servicio-pagos-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/pagos/health, port: 3008 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/pagos/health, port: 3008 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-pagos
+  namespace: core
+spec:
+  selector: { service: pagos }
+  ports:
+    - port: 3008
+      targetPort: 3008
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-mensajeria
+  namespace: core
+  labels: { service: mensajeria, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: mensajeria }
+  template:
+    metadata:
+      labels: { service: mensajeria }
+    spec:
+      containers:
+        - name: mensajeria
+          image: ghcr.io/stejeda1982/telemedicina/servicio-mensajeria:1.0.0
+          ports:
+            - containerPort: 3009
+          envFrom:
+            - secretRef: { name: servicio-mensajeria-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/mensajeria/health, port: 3009 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/mensajeria/health, port: 3009 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-mensajeria
+  namespace: core
+spec:
+  selector: { service: mensajeria }
+  ports:
+    - port: 3009
+      targetPort: 3009
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-notificaciones
+  namespace: core
+  labels: { service: notificaciones, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: notificaciones }
+  template:
+    metadata:
+      labels: { service: notificaciones }
+    spec:
+      containers:
+        - name: notificaciones
+          image: ghcr.io/stejeda1982/telemedicina/servicio-notificaciones:1.0.0
+          ports:
+            - containerPort: 3010
+          envFrom:
+            - secretRef: { name: servicio-notificaciones-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/notificaciones/health, port: 3010 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/notificaciones/health, port: 3010 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-notificaciones
+  namespace: core
+spec:
+  selector: { service: notificaciones }
+  ports:
+    - port: 3010
+      targetPort: 3010
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-integraciones
+  namespace: core
+  labels: { service: integraciones, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: integraciones }
+  template:
+    metadata:
+      labels: { service: integraciones }
+    spec:
+      containers:
+        - name: integraciones
+          image: ghcr.io/stejeda1982/telemedicina/servicio-integraciones:1.0.0
+          ports:
+            - containerPort: 3011
+          envFrom:
+            - secretRef: { name: servicio-integraciones-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/integraciones/health, port: 3011 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/integraciones/health, port: 3011 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-integraciones
+  namespace: core
+spec:
+  selector: { service: integraciones }
+  ports:
+    - port: 3011
+      targetPort: 3011
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicio-auditoria
+  namespace: core
+  labels: { service: auditoria, tier: services }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { service: auditoria }
+  template:
+    metadata:
+      labels: { service: auditoria }
+    spec:
+      containers:
+        - name: auditoria
+          image: ghcr.io/stejeda1982/telemedicina/servicio-auditoria:1.0.0
+          ports:
+            - containerPort: 3012
+          envFrom:
+            - secretRef: { name: servicio-auditoria-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/auditoria/health, port: 3012 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/auditoria/health, port: 3012 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicio-auditoria
+  namespace: core
+spec:
+  selector: { service: auditoria }
+  ports:
+    - port: 3012
+      targetPort: 3012

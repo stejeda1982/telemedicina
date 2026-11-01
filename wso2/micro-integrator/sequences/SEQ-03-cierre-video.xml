@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SEQ-03-cierre-video: Cierre de videoconsulta con captura de nota
+  Pattern: saga
+  Services: video + expediente + agenda + notificaciones
+  Saga state: persisted in wso2-mi MySQL saga_state table.
+  Correlation: X-Correlation-Id propagated end-to-end.
+
+  This is a SKELETON sequence for design review. Production sequences
+  must include full payload mappings, fault sequences, and saga
+  compensation logic per the TDD v1.0 section 7.6.
+-->
+<api xmlns="http://ws.apache.org/ns/synapse"
+     name="SEQ-03-cierre-video"
+     context="/seq-03-cierre-video"
+     method="POST">
+  <inSequence>
+    <!-- 1. Extract JWT claims propagated from API Gateway -->
+    <property name="jwt_sub" expression="get-property('transport', 'X-JWT-Sub')"/>
+    <property name="correlation_id" expression="get-property('transport', 'X-Correlation-Id')"/>
+
+    <!-- 2. Persist saga_state initial record (MySQL) -->
+    <dblookup>
+      <connection>
+        <pool>
+          <dsName>jdbc/wso2mi_saga</dsName>
+        </pool>
+      </connection>
+      <statement>
+        <sql>INSERT INTO saga_state (saga_id, sequence_id, status, started_at, correlation_id) VALUES (?,?,?,?,?)</sql>
+        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+        <parameter value="SEQ-03-cierre-video" type="VARCHAR"/>
+        <parameter value="STARTED" type="VARCHAR"/>
+        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
+        <parameter expression="$ctx:correlation_id" type="VARCHAR"/>
+      </statement>
+    </dblookup>
+
+    <!-- 3. CALL services in sequence/parallel based on pattern -->
+    <!-- TODO: implement each step per TDD section 11 diagram -->
+    <log level="custom">
+      <property name="sequence" value="SEQ-03-cierre-video"/>
+      <property name="pattern" value="saga"/>
+      <property name="status" value="CALLING_SERVICES"/>
+    </log>
+
+    <!-- 4. Compose response payload -->
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","sequence":"SEQ-03-cierre-video","status":"completed","services":"video + expediente + agenda + notificaciones"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+      </args>
+    </payloadFactory>
+
+    <!-- 5. Update saga_state to COMPLETED -->
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
+      <statement>
+        <sql>UPDATE saga_state SET status='COMPLETED', completed_at=? WHERE saga_id=?</sql>
+        <parameter expression="get-property('SYSTEM_DATE')" type="TIMESTAMP"/>
+        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+      </statement>
+    </dbupdate>
+
+    <respond/>
+  </inSequence>
+
+  <faultSequence>
+    <!-- Compensate completed steps in reverse order -->
+    <log level="custom">
+      <property name="sequence" value="SEQ-03-cierre-video"/>
+      <property name="status" value="COMPENSATING"/>
+    </log>
+    <dbupdate>
+      <connection><pool><dsName>jdbc/wso2mi_saga</dsName></pool></connection>
+      <statement>
+        <sql>UPDATE saga_state SET status='COMPENSATED', error=? WHERE saga_id=?</sql>
+        <parameter expression="$ctx:ERROR_MESSAGE" type="VARCHAR"/>
+        <parameter expression="get-property('saga_id')" type="VARCHAR"/>
+      </statement>
+    </dbupdate>
+    <payloadFactory media-type="json">
+      <format>{"saga_id":"$1","sequence":"SEQ-03-cierre-video","status":"compensated","error":"$2"}</format>
+      <args>
+        <arg expression="get-property('saga_id')"/>
+        <arg expression="$ctx:ERROR_MESSAGE"/>
+      </args>
+    </payloadFactory>
+    <respond/>
+  </faultSequence>
+</api>

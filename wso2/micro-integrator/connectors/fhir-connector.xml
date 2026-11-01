@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HL7 FHIR R4 connector template for outbound calls from WSO2 MI -->
+<template xmlns="http://ws.apache.org/ns/synapse" name="fhir-connector">
+  <parameter name="method"/>
+  <parameter name="path"/>
+  <parameter name="payload"/>
+  <sequence>
+    <call>
+      <endpoint>
+        <http uri-template="${FHIR_EXTERNAL_URL}{$ctx:path}" method="{$ctx:method}"/>
+      </endpoint>
+    </call>
+    <!-- Auth header injected from secret -->
+    <property name="Authorization" value="Bearer ${FHIR_EXTERNAL_TOKEN}" scope="transport"/>
+  </sequence>
+</template>

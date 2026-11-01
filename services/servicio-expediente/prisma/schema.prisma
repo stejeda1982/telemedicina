@@ -1,0 +1,56 @@
+// Prisma schema for servicio-expediente
+// Database: expediente_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_EXPEDIENTE")
+}
+
+model NotaEvolucion {
+  nota_id       String   @id @default(uuid())
+  paciente_id   String
+  profesional_id String
+  cita_id       String?
+  texto         String
+  diagnostico   String?
+  plan          String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  signos_vitales SignoVital[]
+  adjuntos       Adjunto[]
+  @@index([paciente_id])
+  @@index([profesional_id])
+}
+
+model SignoVital {
+  id           BigInt  @id @default(autoincrement())
+  nota_id      String
+  loinc_code   String
+  valor        String
+  unidad       String
+  nota         NotaEvolucion @relation(fields: [nota_id], references: [nota_id])
+  @@index([nota_id])
+}
+
+model Adjunto {
+  id          BigInt  @id @default(autoincrement())
+  nota_id     String
+  tipo        String
+  url_s3      String
+  hash        String
+  nota        NotaEvolucion @relation(fields: [nota_id], references: [nota_id])
+  @@index([nota_id])
+}
+
+model AccesoExpediente {
+  id            BigInt   @id @default(autoincrement())
+  paciente_id   String
+  profesional_id String
+  motivo        String
+  timestamp     DateTime @default(now())
+  @@index([paciente_id])
+}

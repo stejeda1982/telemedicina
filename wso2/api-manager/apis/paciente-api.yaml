@@ -1,0 +1,89 @@
+openapi: 3.1.0
+info:
+  title: Paciente API
+  version: '1.0.0'
+  description: API expuesta vía WSO2 API Manager para la plataforma de telemedicina.
+servers:
+  - url: https://api.telemedicina.mx/paciente/1.0.0
+security:
+  - bearerAuth: []
+paths:
+  '/me':
+    get:
+      operationId: me
+      summary: GET /me
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}':
+    get:
+      operationId: id
+      summary: GET /{id}
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/':
+    post:
+      operationId: 
+      summary: POST /
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}':
+    patch:
+      operationId: id
+      summary: PATCH /{id}
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/{id}/consentimientos':
+    post:
+      operationId: id_consentimientos
+      summary: POST /{id}/consentimientos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token issued by WSO2 Identity Server
+x-wso2-production-endpoints:
+  urls:
+    - http://wso2-mi:8290/paciente
+x-wso2-cors:
+  accessControlAllowOrigins: ['*']
+  accessControlAllowHeaders: ['authorization', 'Content-Type', 'X-Correlation-Id']
+  accessControlAllowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']

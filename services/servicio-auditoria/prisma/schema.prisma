@@ -1,0 +1,31 @@
+// Prisma schema for servicio-auditoria
+// Database: auditoria_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_AUDITORIA")
+}
+
+model EventoAuditoria {
+  evento_id     String   @id @default(uuid())
+  timestamp     DateTime @default(now())
+  actor_id      String?
+  actor_tipo    String?
+  accion        String
+  recurso_tipo  String
+  recurso_id    String?
+  tenant_id     String   @default("default")
+  correlation_id String?
+  ip            String?
+  user_agent    String?
+  payload_cifrado String?
+  hash_previo   String?
+  hash_actual   String?
+  @@index([actor_id])
+  @@index([recurso_tipo, recurso_id])
+  @@index([timestamp])
+}

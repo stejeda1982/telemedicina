@@ -1,0 +1,59 @@
+// Prisma schema for servicio-profesionales
+// Database: profesionales_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_PROFESIONALES")
+}
+
+model Profesional {
+  profesional_id String   @id @default(uuid())
+  user_id        String   @unique
+  cedula         String   @unique
+  nombres        String
+  apellidos      String
+  biografia      String?
+  idiomas        String[]
+  estado         String   @default("pendiente")
+  verified_at    DateTime?
+  tenant_id      String   @default("default")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  especialidades ProfesionalEspecialidad[]
+  tarifas        Tarifa[]
+  disponibilidades Disponibilidad[]
+  @@index([tenant_id])
+}
+
+model ProfesionalEspecialidad {
+  id              BigInt  @id @default(autoincrement())
+  profesional_id  String
+  especialidad    String
+  subespecialidad String?
+  profesional     Profesional @relation(fields: [profesional_id], references: [profesional_id])
+  @@index([profesional_id])
+}
+
+model Tarifa {
+  id             BigInt  @id @default(autoincrement())
+  profesional_id String
+  tipo_consulta  String
+  monto          Decimal @db.Decimal(10, 2)
+  moneda         String @default("MXN")
+  profesional    Profesional @relation(fields: [profesional_id], references: [profesional_id])
+  @@index([profesional_id])
+}
+
+model Disponibilidad {
+  id             BigInt  @id @default(autoincrement())
+  profesional_id String
+  dia_semana     Int
+  hora_inicio    Int
+  hora_fin       Int
+  profesional    Profesional @relation(fields: [profesional_id], references: [profesional_id])
+  @@index([profesional_id])
+}

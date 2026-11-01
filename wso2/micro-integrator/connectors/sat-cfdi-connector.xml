@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PAC-SAT (CFDI 4.0) connector template for outbound calls from WSO2 MI -->
+<template xmlns="http://ws.apache.org/ns/synapse" name="sat-cfdi-connector">
+  <parameter name="method"/>
+  <parameter name="path"/>
+  <parameter name="payload"/>
+  <sequence>
+    <call>
+      <endpoint>
+        <http uri-template="${PAC_SAT_ENDPOINT}{$ctx:path}" method="{$ctx:method}"/>
+      </endpoint>
+    </call>
+    <!-- Auth header injected from secret -->
+    <property name="Authorization" value="Bearer ${PAC_SAT_TOKEN}" scope="transport"/>
+  </sequence>
+</template>

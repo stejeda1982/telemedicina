@@ -1,0 +1,50 @@
+// Prisma schema for servicio-integraciones
+// Database: integraciones_db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_INTEGRACIONES")
+}
+
+model Aplicacion {
+  app_id      String   @id @default(uuid())
+  nombre      String
+  client_id   String   @unique
+  tipo        String   @default("smart_on_fhir")
+  estado      String   @default("activa")
+  created_at  DateTime @default(now())
+  claves      ClaveApi[]
+  webhooks    Webhook[]
+}
+
+model ClaveApi {
+  id          BigInt  @id @default(autoincrement())
+  app_id      String
+  clave_hash  String
+  rotada_at   DateTime @default(now())
+  aplicacion  Aplicacion @relation(fields: [app_id], references: [app_id])
+}
+
+model Webhook {
+  id              BigInt  @id @default(autoincrement())
+  app_id          String
+  url             String
+  evento_tipo     String
+  secreto_hash    String
+  activo          Boolean @default(true)
+  aplicacion      Aplicacion @relation(fields: [app_id], references: [app_id])
+  @@index([app_id, evento_tipo])
+}
+
+model EventoSuscripcion {
+  id          BigInt   @id @default(autoincrement())
+  app_id      String
+  evento_tipo String
+  estado      String   @default("activa")
+  created_at  DateTime @default(now())
+  @@index([app_id, evento_tipo])
+}

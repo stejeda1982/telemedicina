@@ -1,0 +1,45 @@
+# Default-deny + explicit allow rules between namespaces.
+# Conforms to TDD section 12.2: wso2 <- bff+ingress; core <- wso2; data <- core+wso2.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wso2-deny-all-default
+  namespace: wso2
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wso2-allow-bff-ingress
+  namespace: wso2
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { tier: edge }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: core-deny-all-default
+  namespace: core
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: core-allow-wso2
+  namespace: core
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { tier: platform }

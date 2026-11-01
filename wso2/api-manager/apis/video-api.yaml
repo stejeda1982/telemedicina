@@ -1,0 +1,63 @@
+openapi: 3.1.0
+info:
+  title: Video API
+  version: '1.0.0'
+  description: API expuesta vía WSO2 API Manager para la plataforma de telemedicina.
+servers:
+  - url: https://api.telemedicina.mx/video/1.0.0
+security:
+  - bearerAuth: []
+paths:
+  '/sesiones':
+    post:
+      operationId: sesiones
+      summary: POST /sesiones
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/sesiones/{id}':
+    get:
+      operationId: sesiones_id
+      summary: GET /sesiones/{id}
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  '/sesiones/{id}/finalizar':
+    post:
+      operationId: sesiones_id_finalizar
+      summary: POST /sesiones/{id}/finalizar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token issued by WSO2 Identity Server
+x-wso2-production-endpoints:
+  urls:
+    - http://wso2-mi:8290/video
+x-wso2-cors:
+  accessControlAllowOrigins: ['*']
+  accessControlAllowHeaders: ['authorization', 'Content-Type', 'X-Correlation-Id']
+  accessControlAllowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']
