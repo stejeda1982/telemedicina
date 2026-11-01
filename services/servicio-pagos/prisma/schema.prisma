@@ -62,3 +62,16 @@ model FacturaCfdi {
   transaccion     Transaccion @relation(fields: [transaccion_id], references: [transaccion_id])
   @@index([transaccion_id])
 }
+
+// Outbox pattern: events written in the same DB transaction as business changes.
+// Drained by @telemed/common OutboxService every 2s.
+model OutboxEvent {
+  id           BigInt   @id @default(autoincrement())
+  event_type   String
+  payload      Json
+  status       String   @default("PENDING")
+  attempts     Int      @default(0)
+  created_at   DateTime @default(now())
+  published_at DateTime?
+  @@index([status, created_at])
+}

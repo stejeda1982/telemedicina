@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { OutboxService } from '@telemed/common';
 
 // Auto-generated service for servicio-pacientes.
 // The paciente model is the aggregate root of this service.
 
 @Injectable()
 export class PacientesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async list(query: any) {
     const { skip = 0, take = 50, ...where } = query;
@@ -43,7 +47,15 @@ export class PacientesService {
   }
 
   async create(dto: any) {
-    return this.prisma.paciente.create({ data: dto });
+    return this.prisma.$transaction(async (tx) => {
+      const rec = await tx.paciente.create({ data: dto });
+      await this.outbox.publish(
+        'telemedicina.paciente.creado.v1',
+        { paciente_id: rec.paciente_id, curp: rec.curp, tenant_id: rec.tenant_id },
+        tx,
+      );
+      return rec;
+    });
   }
 
   async update(id: string, dto: any) {
