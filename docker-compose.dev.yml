@@ -1,0 +1,385 @@
+# ============================================================
+# docker-compose.dev.yml — Entorno de desarrollo completo
+#
+# Infraestructura:
+#   - PostgreSQL 16 (12 databases, una por servicio)
+#   - NATS 2.10 con JetStream habilitado
+#   - Redis 7 (cache/sessions)
+#
+# Servicios (profile: full):
+#   - 12 microservicios NestJS (puertos 3001-3012)
+#   - 3 BFFs (puertos 4001-4003)
+#
+# Uso:
+#   # Solo infraestructura (para dev local con pnpm start:dev):
+#   docker compose -f docker-compose.dev.yml up -d
+#
+#   # Todo (infra + servicios, para E2E):
+#   docker compose -f docker-compose.dev.yml --profile full up -d
+#
+#   # Apagar:
+#   docker compose -f docker-compose.dev.yml down
+# ============================================================
+version: "3.9"
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  env_file:
+    - .env.dev
+  networks:
+    - telemed-net
+
+services:
+  # ============================================================
+  # Infraestructura
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: telemed-postgres
+    <<: *service-defaults
+    environment:
+      POSTGRES_USER: telemed
+      POSTGRES_PASSWORD: telemed
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemed"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: telemed-nats
+    <<: *service-defaults
+    command: >
+      --js
+      --store_dir /data
+      --max_mem_store 256MB
+      --max_file_store 1GB
+      --http_port 8222
+      --server_name telemed-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: telemed-redis
+    <<: *service-defaults
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ============================================================
+  # Microservicios (profile: full)
+  # ============================================================
+  svc-identidad:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-identidad
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_identidad
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  svc-pacientes:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-pacientes
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_pacientes
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  svc-profesionales:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-profesionales
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_profesionales
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-agenda:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-agenda
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_agenda
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-video:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-video
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_video
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-expediente:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-expediente
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_expediente
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-recetas:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-recetas
+      dockerfile: Dockerfile
+    ports:
+      - "3007:3007"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_recetas
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-pagos:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-pagos
+      dockerfile: Dockerfile
+    ports:
+      - "3008:3008"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_pagos
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3008"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-mensajeria:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-mensajeria
+      dockerfile: Dockerfile
+    ports:
+      - "3009:3009"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_mensajeria
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3009"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-notificaciones:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-notificaciones
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3010"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_notificaciones
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-integraciones:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-integraciones
+      dockerfile: Dockerfile
+    ports:
+      - "3011:3011"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_integraciones
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3011"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  svc-auditoria:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./services/servicio-auditoria
+      dockerfile: Dockerfile
+    ports:
+      - "3012:3012"
+    environment:
+      DATABASE_URL: postgresql://telemed:telemed@postgres:5432/telemed_auditoria
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      PORT: "3012"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  # ============================================================
+  # BFFs (profile: full)
+  # ============================================================
+  bff-paciente:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./bff/bff-paciente
+      dockerfile: Dockerfile
+    ports:
+      - "4001:4001"
+    environment:
+      NATS_URL: nats://nats:4222
+      PORT: "4001"
+    depends_on:
+      nats:
+        condition: service_healthy
+
+  bff-profesional:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./bff/bff-profesional
+      dockerfile: Dockerfile
+    ports:
+      - "4002:4002"
+    environment:
+      NATS_URL: nats://nats:4222
+      PORT: "4002"
+    depends_on:
+      nats:
+        condition: service_healthy
+
+  bff-admin:
+    <<: *service-defaults
+    profiles: ["full"]
+    build:
+      context: ./bff/bff-admin
+      dockerfile: Dockerfile
+    ports:
+      - "4003:4003"
+    environment:
+      NATS_URL: nats://nats:4222
+      PORT: "4003"
+    depends_on:
+      nats:
+        condition: service_healthy
+
+# ============================================================
+# Networks & Volumes
+# ============================================================
+networks:
+  telemed-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  nats-data:
+  redis-data:

@@ -1,7 +1,7 @@
 import {
   Controller, Get, Post, Patch, Param, Body, Req, Query, UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 import { IdentidadService } from './identidad.service';
@@ -16,30 +16,47 @@ export class IdentidadController {
 
   @Get('me')
   @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Prohibido' })
   async obtiene_el_perfil_del_usuario_autenticado(@Req() req: any) {
     return this.svc.findMe(req.user);
   }
 
   @Get(':user_id')
   @ApiOperation({ summary: 'Obtiene un usuario por WSO2 user_id' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Prohibido' })
   async obtiene_un_usuario_por_wso2_user_id(@Param('user_id') user_id: string) {
     return this.svc.findByUserId(user_id);
   }
 
   @Post('')
   @ApiOperation({ summary: 'Crea o actualiza perfil tras JIT provisioning' })
+  @ApiResponse({ status: 201, description: 'Recurso creado' })
+  @ApiResponse({ status: 400, description: 'Solicitud invalida' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 409, description: 'Conflicto' })
   async crea_o_actualiza_perfil_tras_jit_provisioning(@Body() dto: CreateUsuarioPerfilDto) {
     return this.svc.create(dto);
   }
 
   @Patch(':user_id')
   @ApiOperation({ summary: 'Actualiza claims del usuario' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 400, description: 'Solicitud invalida' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 404, description: 'No encontrado' })
   async actualiza_claims_del_usuario(@Param('user_id') user_id: string, @Body() dto: any, @Query() query: any) {
     return this.svc.list(query);
   }
 
   @Get(':user_id/auditoria')
   @ApiOperation({ summary: 'Historial de sesiones' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Prohibido' })
   async historial_de_sesiones(@Param('user_id') user_id: string) {
     return this.svc.findByUserId(user_id);
   }
@@ -47,6 +64,9 @@ export class IdentidadController {
   @Public()
   @Get('health')
   @ApiOperation({ summary: 'Health check' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Prohibido' })
   health() {
     return { status: 'ok', service: 'identidad', timestamp: new Date().toISOString() };
   }
