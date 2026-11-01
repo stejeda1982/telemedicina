@@ -13,7 +13,7 @@ export class CreateProfesionalDto {
   @IsUUID()
   user_id: string;
 
-  @IsString() @Matches(/^\\d{7,8}$/, { message: 'Cédula debe tener 7-8 dígitos' })
+  @IsString() @Matches(/^\d{7,8}$/, { message: 'Cédula debe tener 7-8 dígitos' })
   cedula: string;
 
   @IsString() @Length(2, 100)

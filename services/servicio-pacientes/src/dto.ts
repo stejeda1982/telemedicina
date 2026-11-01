@@ -12,7 +12,7 @@ export class CreatePacienteDto {
   @IsUUID()
   user_id: string;
 
-  @IsString() @Matches(/^[A-Z]{4}\\d{6}[HM][A-Z]{5}\\d{2}$/, { message: 'CURP inválido' })
+  @IsString() @Matches(/^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$/, { message: 'CURP inválido' })
   curp: string;
 
   @IsOptional() @IsString() @Length(12, 13)
@@ -33,7 +33,7 @@ export class CreatePacienteDto {
   @IsIn(['M','F','O'])
   sexo: string;
 
-  @IsString() @Matches(/^\\+?\\d{10,15}$/)
+  @IsString() @Matches(/^\+?\d{10,15}$/)
   telefono: string;
 
   @IsEmail()

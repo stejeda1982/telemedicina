@@ -10,11 +10,15 @@
     "dev:infra": "docker compose -f infra/docker-compose.yml up -d",
     "dev:services": "pnpm -r --filter ./services/* run start:dev",
     "prisma:generate": "pnpm -r --filter ./services/* exec prisma generate",
-    "prisma:migrate": "pnpm -r --filter ./services/* exec prisma migrate dev"
+    "prisma:migrate": "pnpm -r --filter ./services/* exec prisma migrate dev",
+    "test:all": "pnpm -r --parallel run test"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
     "prettier": "^3.2.0"
   },
-  "engines": { "node": ">=20.0.0", "pnpm": ">=9.0.0" }
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
 }

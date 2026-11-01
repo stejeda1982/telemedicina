@@ -31,7 +31,7 @@ export class CreateNotaDto {
 }
 
 export class AddSignoVitalDto {
-  @IsString() @Matches(/^\\d{4,7}-\\d{1,2}$/)
+  @IsString() @Matches(/^\d{4,7}-\d{1,2}$/)
   loinc_code: string;
 
   @IsString()
